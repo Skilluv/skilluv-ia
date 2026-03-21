@@ -2,14 +2,13 @@
 
 Replays :
 - Reconstitue les frames d'édition à partir des events horodatés
-- Génère une image par frame (texte sur fond sombre, style terminal)
-- Encode en vidéo accélérée (timelapse) avec overlay stats
+- Rend chaque frame en image PNG (code coloré sur fond sombre, style terminal)
+- Encode en vidéo accélérée (timelapse) avec barre de stats et progression
 - Upload vers MinIO : skilluv-media/replays/{submission_id}.mp4
 
 Clips :
 - Télécharge le replay source depuis MinIO
 - Extrait un segment de 30 secondes
-- Ajoute intro/outro Skilluv
 - Upload vers MinIO : skilluv-media/clips/{submission_id}_{clip_type}.mp4
 """
 
@@ -31,10 +30,7 @@ logger = get_logger("service.media_processor")
 VIDEO_WIDTH = 1280
 VIDEO_HEIGHT = 720
 VIDEO_FPS = 30
-REPLAY_SPEEDUP = 10  # 10x acceleré
-FONT_SIZE = 16
-BACKGROUND_COLOR = "0x1c1917"  # Forge theme warm gray
-TEXT_COLOR = "0xe7e5e4"  # Warm white
+REPLAY_SPEEDUP = 10  # 10x accéléré
 
 
 async def generate_replay(payload: ReplayPayload) -> MediaResult:
@@ -47,27 +43,33 @@ async def generate_replay(payload: ReplayPayload) -> MediaResult:
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Phase 1 : Reconstituer les frames textuelles
+        # Phase 1 : Rendre les frames en images PNG
         frames_dir = os.path.join(tmpdir, "frames")
         os.makedirs(frames_dir)
-        _generate_code_frames(payload.events, frames_dir)
 
-        # Phase 2 : Générer la frame de stats overlay
-        stats_frame = os.path.join(tmpdir, "stats.txt")
-        _write_stats_overlay(payload.stats, stats_frame)
+        stats_text = _format_stats_text(payload.stats)
+        num_frames = _render_visual_frames(payload.events, frames_dir, stats_text)
 
-        # Phase 3 : Encoder en vidéo
+        if num_frames == 0:
+            raise ProcessingError(
+                "Aucun événement à rendre",
+                {"submission_id": payload.submission_id},
+            )
+
+        # Phase 2 : Encoder les images PNG en vidéo MP4
         output_path = os.path.join(tmpdir, "replay.mp4")
-        await _encode_replay_video(frames_dir, stats_frame, output_path, payload.stats)
+        target_duration = max(5, payload.stats.duration_seconds // REPLAY_SPEEDUP)
+        input_fps = max(1, num_frames // target_duration)
 
-        # Phase 4 : Upload vers MinIO
+        await _encode_png_sequence(frames_dir, output_path, input_fps)
+
+        # Phase 3 : Upload vers MinIO
         minio_key = f"replays/{payload.submission_id}.mp4"
         with open(output_path, "rb") as f:
             video_data = f.read()
 
         upload_file(minio_key, video_data, content_type="video/mp4")
 
-        # Calculer la durée de la vidéo
         video_duration = payload.stats.duration_seconds / REPLAY_SPEEDUP
 
         result = MediaResult(
@@ -83,6 +85,7 @@ async def generate_replay(payload: ReplayPayload) -> MediaResult:
         submission_id=payload.submission_id,
         minio_key=minio_key,
         file_size_bytes=len(video_data),
+        num_frames=num_frames,
     )
 
     return result
@@ -146,11 +149,24 @@ async def generate_clip(payload: ClipPayload) -> MediaResult:
 # === Fonctions internes ===
 
 
-def _generate_code_frames(events: list[dict], frames_dir: str) -> int:
-    """Reconstitue l'état du code à chaque événement et génère les fichiers texte des frames.
+def _render_visual_frames(
+    events: list[dict], frames_dir: str, stats_text: str
+) -> int:
+    """Rend les événements d'édition en images PNG via le frame renderer.
 
-    Retourne le nombre de frames générées.
+    Fallback sur les frames texte si Pillow n'est pas disponible.
     """
+    try:
+        from src.services._frame_renderer import render_frames_to_dir
+
+        return render_frames_to_dir(events, frames_dir, stats_text=stats_text)
+    except ImportError:
+        logger.warning("pillow_not_available_using_text_frames")
+        return _generate_text_frames(events, frames_dir)
+
+
+def _generate_text_frames(events: list[dict], frames_dir: str) -> int:
+    """Fallback : génère des fichiers texte quand Pillow n'est pas disponible."""
     code_state = ""
     frame_count = 0
 
@@ -161,7 +177,6 @@ def _generate_code_frames(events: list[dict], frames_dir: str) -> int:
         if event_type == "insert":
             code_state += content
         elif event_type == "delete":
-            # Supprime les N derniers caractères
             delete_count = event.get("count", len(content))
             code_state = code_state[:-delete_count] if delete_count else code_state
         elif event_type == "replace":
@@ -169,7 +184,6 @@ def _generate_code_frames(events: list[dict], frames_dir: str) -> int:
         elif event_type == "snapshot":
             code_state = content
 
-        # Écrire la frame texte
         frame_path = os.path.join(frames_dir, f"frame_{frame_count:06d}.txt")
         with open(frame_path, "w", encoding="utf-8") as f:
             f.write(code_state)
@@ -178,52 +192,60 @@ def _generate_code_frames(events: list[dict], frames_dir: str) -> int:
     return frame_count
 
 
-def _write_stats_overlay(stats, stats_file: str) -> None:
-    """Écrit les stats dans un fichier pour l'overlay ffmpeg."""
+def _format_stats_text(stats) -> str:
+    """Formate les statistiques de soumission pour l'overlay."""
     duration_min = stats.duration_seconds // 60
     duration_sec = stats.duration_seconds % 60
-    text = (
-        f"Duration: {duration_min}m{duration_sec:02d}s | "
-        f"Keystrokes: {stats.keystrokes} | "
-        f"Tests: {stats.tests_passed}/{stats.tests_total} | "
+    return (
+        f"Duration: {duration_min}m{duration_sec:02d}s  |  "
+        f"Keystrokes: {stats.keystrokes}  |  "
+        f"Tests: {stats.tests_passed}/{stats.tests_total}  |  "
         f"Fragments: +{stats.fragments_earned}"
     )
-    with open(stats_file, "w", encoding="utf-8") as f:
-        f.write(text)
 
 
-async def _encode_replay_video(
-    frames_dir: str, stats_file: str, output_path: str, stats
+async def _encode_png_sequence(
+    frames_dir: str, output_path: str, input_fps: int
 ) -> None:
-    """Encode les frames texte en vidéo MP4 avec ffmpeg.
-
-    Approche : génère une vidéo avec fond sombre + texte code via drawtext,
-    puis ajoute l'overlay des stats en bas.
-    """
-    with open(stats_file, "r") as f:
-        stats_text = f.read().replace(":", "\\:").replace("'", "\\'")
-
-    # Compter les frames
-    frame_files = sorted(
-        f for f in os.listdir(frames_dir) if f.startswith("frame_")
-    )
-    num_frames = len(frame_files)
-
-    if num_frames == 0:
+    """Encode une séquence d'images PNG en vidéo MP4 via ffmpeg."""
+    # Déterminer le pattern des frames
+    frame_files = sorted(f for f in os.listdir(frames_dir) if f.startswith("frame_"))
+    if not frame_files:
         raise ProcessingError("Aucune frame à encoder", {"frames_dir": frames_dir})
 
-    # Calculer le framerate pour le timelapse
-    target_duration = max(5, stats.duration_seconds // REPLAY_SPEEDUP)
-    input_fps = max(1, num_frames // target_duration)
+    # Déterminer l'extension (.png ou .txt)
+    ext = os.path.splitext(frame_files[0])[1]
 
-    try:
-        # Générer une vidéo à partir d'un fond noir avec les stats en overlay
-        # Les frames texte seront intégrées dans un futur raffinement
-        # Pour le MVP : vidéo noire avec stats overlay
+    if ext == ".png":
+        # Encoder la séquence PNG directement
+        input_pattern = os.path.join(frames_dir, "frame_%06d.png")
+        try:
+            process = (
+                ffmpeg
+                .input(input_pattern, framerate=input_fps)
+                .output(
+                    output_path,
+                    vcodec="libx264",
+                    pix_fmt="yuv420p",
+                    r=VIDEO_FPS,
+                    preset="fast",
+                    crf=23,
+                    movflags="+faststart",
+                )
+                .overwrite_output()
+            )
+            await _run_ffmpeg(process)
+        except ProcessingError:
+            raise
+    else:
+        # Fallback : frames texte, générer une vidéo avec fond coloré
+        num_frames = len(frame_files)
+        target_duration = max(5, num_frames // max(input_fps, 1))
+
         process = (
             ffmpeg
             .input(
-                "color=c=0x1c1917:s=1280x720:d=" + str(target_duration),
+                f"color=c=0x1c1917:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:d={target_duration}",
                 f="lavfi",
             )
             .output(
@@ -234,53 +256,35 @@ async def _encode_replay_video(
                 preset="fast",
                 crf=23,
                 movflags="+faststart",
-                **{"t": target_duration},
+                t=target_duration,
             )
             .overwrite_output()
         )
-
-        # Exécuter ffmpeg en async
-        cmd = process.compile()
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        _, stderr = await proc.communicate()
-
-        if proc.returncode != 0:
-            raise ProcessingError(
-                "ffmpeg encoding failed",
-                {"stderr": stderr.decode()[-500:]},
-            )
-
-    except ProcessingError:
-        raise
-    except Exception as e:
-        raise ProcessingError(
-            f"Erreur lors de l'encodage vidéo: {e}",
-            {"error": str(e)},
-        ) from e
+        await _run_ffmpeg(process)
 
 
 async def _extract_clip_segment(
     source_path: str, output_path: str, start_seconds: int, duration_seconds: int
 ) -> None:
     """Extrait un segment vidéo avec ffmpeg."""
-    try:
-        process = (
-            ffmpeg
-            .input(source_path, ss=start_seconds, t=duration_seconds)
-            .output(
-                output_path,
-                vcodec="libx264",
-                acodec="copy",
-                preset="fast",
-                movflags="+faststart",
-            )
-            .overwrite_output()
+    process = (
+        ffmpeg
+        .input(source_path, ss=start_seconds, t=duration_seconds)
+        .output(
+            output_path,
+            vcodec="libx264",
+            acodec="copy",
+            preset="fast",
+            movflags="+faststart",
         )
+        .overwrite_output()
+    )
+    await _run_ffmpeg(process)
 
+
+async def _run_ffmpeg(process) -> None:
+    """Exécute un pipeline ffmpeg en async."""
+    try:
         cmd = process.compile()
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -291,14 +295,10 @@ async def _extract_clip_segment(
 
         if proc.returncode != 0:
             raise ProcessingError(
-                "ffmpeg clip extraction failed",
-                {"stderr": stderr.decode()[-500:]},
+                "ffmpeg process failed",
+                {"stderr": stderr.decode()[-500:], "return_code": proc.returncode},
             )
-
     except ProcessingError:
         raise
     except Exception as e:
-        raise ProcessingError(
-            f"Erreur lors de l'extraction du clip: {e}",
-            {"error": str(e)},
-        ) from e
+        raise ProcessingError(f"ffmpeg execution error: {e}", {"error": str(e)}) from e

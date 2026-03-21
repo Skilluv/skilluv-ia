@@ -6,9 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from src.models.challenge import ChallengeParams, GeneratedChallenge
+from src.services._challenge_prompts import build_system_prompt
 from src.services.challenge_generator import (
-    _build_system_prompt,
     _calculate_fragment_reward,
+    _extract_json,
     generate_challenge,
 )
 
@@ -48,7 +49,7 @@ class TestBuildSystemPrompt:
         params = ChallengeParams(
             skill_domain="code", difficulty=3, duration_minutes=30, language="fr"
         )
-        prompt = _build_system_prompt(params)
+        prompt = build_system_prompt(params)
         assert "français" in prompt
         assert "30 minutes" in prompt
         assert "3/5" in prompt
@@ -57,7 +58,7 @@ class TestBuildSystemPrompt:
         params = ChallengeParams(
             skill_domain="code", difficulty=3, duration_minutes=30, language="en"
         )
-        prompt = _build_system_prompt(params)
+        prompt = build_system_prompt(params)
         assert "English" in prompt
 
     def test_programming_language_included(self) -> None:
@@ -67,20 +68,44 @@ class TestBuildSystemPrompt:
             duration_minutes=30,
             programming_language="python",
         )
-        prompt = _build_system_prompt(params)
+        prompt = build_system_prompt(params)
         assert "python" in prompt
 
     def test_security_domain(self) -> None:
         params = ChallengeParams(skill_domain="security", difficulty=4, duration_minutes=60)
-        prompt = _build_system_prompt(params)
+        prompt = build_system_prompt(params)
         assert "sécurité" in prompt.lower() or "CTF" in prompt
 
     def test_absurd_tone(self) -> None:
         params = ChallengeParams(
             skill_domain="code", difficulty=2, duration_minutes=15, tone="absurd"
         )
-        prompt = _build_system_prompt(params)
+        prompt = build_system_prompt(params)
         assert "absurde" in prompt.lower() or "drôle" in prompt.lower()
+
+
+class TestExtractJson:
+    def test_clean_json(self) -> None:
+        data = _extract_json('{"title": "Hello"}')
+        assert data["title"] == "Hello"
+
+    def test_code_fences(self) -> None:
+        data = _extract_json('```json\n{"title": "Hello"}\n```')
+        assert data["title"] == "Hello"
+
+    def test_text_before_json(self) -> None:
+        data = _extract_json('Here is the challenge:\n{"title": "Hello"}')
+        assert data["title"] == "Hello"
+
+    def test_text_around_json(self) -> None:
+        data = _extract_json('Sure!\n{"title": "Hello"}\nHope this helps!')
+        assert data["title"] == "Hello"
+
+    def test_invalid_json_raises(self) -> None:
+        from src.exceptions import ValidationError
+
+        with pytest.raises(ValidationError):
+            _extract_json("not json at all")
 
 
 class TestGenerateChallenge:

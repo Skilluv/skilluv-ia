@@ -32,6 +32,7 @@ dependencies = [
 
     # Média
     "ffmpeg-python>=0.2",
+    "Pillow>=11.0",
 
     # Stockage
     "minio>=7.2",
