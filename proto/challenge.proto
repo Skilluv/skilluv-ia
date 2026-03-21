@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package skilluv.ai;
 
-option python_generic_services = true;
-
 // Service de génération de challenges
 service ChallengeService {
   // Génère un challenge complet à partir de paramètres

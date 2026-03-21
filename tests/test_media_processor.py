@@ -7,12 +7,12 @@ import pytest
 
 from src.models.queue_messages import ReplayPayload, SubmissionStats
 from src.services.media_processor import (
-    _generate_code_frames,
-    _write_stats_overlay,
+    _format_stats_text,
+    _generate_text_frames,
 )
 
 
-class TestGenerateCodeFrames:
+class TestGenerateTextFrames:
     def test_insert_events(self) -> None:
         events = [
             {"type": "insert", "content": "def "},
@@ -20,10 +20,9 @@ class TestGenerateCodeFrames:
             {"type": "insert", "content": "\n    return 'world'"},
         ]
         with tempfile.TemporaryDirectory() as tmpdir:
-            count = _generate_code_frames(events, tmpdir)
+            count = _generate_text_frames(events, tmpdir)
             assert count == 3
 
-            # Dernière frame contient le code complet
             with open(os.path.join(tmpdir, "frame_000002.txt")) as f:
                 content = f.read()
             assert content == "def hello():\n    return 'world'"
@@ -34,7 +33,7 @@ class TestGenerateCodeFrames:
             {"type": "delete", "count": 5},
         ]
         with tempfile.TemporaryDirectory() as tmpdir:
-            count = _generate_code_frames(events, tmpdir)
+            count = _generate_text_frames(events, tmpdir)
             assert count == 2
 
             with open(os.path.join(tmpdir, "frame_000001.txt")) as f:
@@ -47,7 +46,7 @@ class TestGenerateCodeFrames:
             {"type": "replace", "content": "new code"},
         ]
         with tempfile.TemporaryDirectory() as tmpdir:
-            _generate_code_frames(events, tmpdir)
+            _generate_text_frames(events, tmpdir)
 
             with open(os.path.join(tmpdir, "frame_000001.txt")) as f:
                 content = f.read()
@@ -55,7 +54,7 @@ class TestGenerateCodeFrames:
 
     def test_empty_events(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            count = _generate_code_frames([], tmpdir)
+            count = _generate_text_frames([], tmpdir)
             assert count == 0
             assert len(os.listdir(tmpdir)) == 0
 
@@ -65,15 +64,15 @@ class TestGenerateCodeFrames:
             {"type": "snapshot", "content": "clean state"},
         ]
         with tempfile.TemporaryDirectory() as tmpdir:
-            _generate_code_frames(events, tmpdir)
+            _generate_text_frames(events, tmpdir)
 
             with open(os.path.join(tmpdir, "frame_000001.txt")) as f:
                 content = f.read()
             assert content == "clean state"
 
 
-class TestWriteStatsOverlay:
-    def test_writes_stats(self) -> None:
+class TestFormatStatsText:
+    def test_formats_correctly(self) -> None:
         stats = SubmissionStats(
             duration_seconds=325,
             keystrokes=450,
@@ -81,25 +80,15 @@ class TestWriteStatsOverlay:
             tests_total=7,
             fragments_earned=120,
         )
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
-            path = f.name
+        text = _format_stats_text(stats)
 
-        try:
-            _write_stats_overlay(stats, path)
-            with open(path) as f:
-                content = f.read()
-
-            assert "5m25s" in content
-            assert "450" in content
-            assert "5/7" in content
-            assert "+120" in content
-        finally:
-            os.unlink(path)
+        assert "5m25s" in text
+        assert "450" in text
+        assert "5/7" in text
+        assert "+120" in text
 
 
 class TestReplayPayloadFixture:
-    """Vérifie que les fixtures de test sont valides."""
-
     def test_replay_payload_from_fixture(self, sample_replay_payload: dict) -> None:
         payload = ReplayPayload.model_validate(sample_replay_payload["payload"])
         assert payload.submission_id == "sub-001"
