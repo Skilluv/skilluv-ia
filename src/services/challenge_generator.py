@@ -61,7 +61,23 @@ def _extract_json(raw_text: str) -> dict:
 
 
 async def generate_challenge(params: ChallengeParams) -> GeneratedChallenge:
-    """Génère un challenge complet via l'API Claude."""
+    """Génère un challenge complet via l'API Claude.
+
+    Vérifie d'abord le cache Redis. Si un challenge identique existe,
+    le retourne directement sans appeler Claude.
+    """
+    from src.services._challenge_cache import cache_challenge, get_cached_challenge
+
+    # Vérifier le cache
+    cached = await get_cached_challenge(params)
+    if cached is not None:
+        logger.info(
+            "challenge_served_from_cache",
+            title=cached.title,
+            skill_domain=params.skill_domain,
+        )
+        return cached
+
     logger.info(
         "generating_challenge",
         skill_domain=params.skill_domain,
@@ -117,5 +133,8 @@ async def generate_challenge(params: ChallengeParams) -> GeneratedChallenge:
         test_cases_count=len(challenge.test_cases),
         fragment_reward=fragment_reward,
     )
+
+    # Mettre en cache
+    await cache_challenge(params, challenge)
 
     return challenge

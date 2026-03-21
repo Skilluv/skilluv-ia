@@ -1,5 +1,5 @@
 services:
-  # --- Infrastructure locale de développement ---
+  # === Infrastructure ===
 
   redis:
     image: redis:7-alpine
@@ -17,7 +17,7 @@ services:
     image: minio/minio:latest
     ports:
       - "9000:9000"
-      - "9001:9001"  # Console web
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
@@ -30,10 +30,37 @@ services:
       timeout: 3s
       retries: 5
 
-  # --- Service skilluv-ai (optionnel en dev, on peut lancer directement) ---
+  # === Monitoring (profil: monitoring) ===
+
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["monitoring"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - skilluv-ai
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: skilluv
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # === Service skilluv-ai (mode unifie - defaut) ===
 
   skilluv-ai:
     build: .
+    profiles: ["", "monitoring"]
     ports:
       - "8000:8000"
       - "50051:50051"
@@ -47,6 +74,77 @@ services:
       REDIS_URL: redis://redis:6379/0
       MINIO_ENDPOINT: minio:9000
 
+  # === Services separes (profil: scaled) ===
+  # Utiliser quand le volume justifie la separation
+
+  skilluv-ai-api:
+    build: .
+    profiles: ["scaled"]
+    ports:
+      - "8000:8000"
+      - "50051:50051"
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      SKILLUV_MODE: api
+    command: ["python", "-c", "import asyncio; from src.main import start_fastapi, start_grpc; asyncio.run(asyncio.gather(start_fastapi(), start_grpc()))"]
+
+  skilluv-ai-worker-plagiarism:
+    build: .
+    profiles: ["scaled"]
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      SKILLUV_MODE: worker
+      SKILLUV_QUEUES: plagiarism
+    command: ["python", "-c", "from arq import run_worker; from src.workers.settings import get_redis_settings; from src.workers.plagiarism import process_plagiarism_job; run_worker({'functions': [process_plagiarism_job], 'redis_settings': get_redis_settings(), 'queue_name': 'skilluv:queue:plagiarism'})"]
+
+  skilluv-ai-worker-matching:
+    build: .
+    profiles: ["scaled"]
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      SKILLUV_MODE: worker
+      SKILLUV_QUEUES: matching
+    command: ["python", "-c", "from arq import run_worker; from src.workers.settings import get_redis_settings; from src.workers.talent_matcher import process_talent_match_job; run_worker({'functions': [process_talent_match_job], 'redis_settings': get_redis_settings(), 'queue_name': 'skilluv:queue:matching'})"]
+
+  skilluv-ai-worker-media:
+    build: .
+    profiles: ["scaled"]
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      SKILLUV_MODE: worker
+      SKILLUV_QUEUES: media
+    command: ["python", "-c", "from arq import run_worker; from src.workers.settings import get_redis_settings; from src.workers.media_processor import process_media_job; run_worker({'functions': [process_media_job], 'redis_settings': get_redis_settings(), 'queue_name': 'skilluv:queue:media'})"]
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
 volumes:
   redis_data:
   minio_data:
+  prometheus_data:
+  grafana_data:

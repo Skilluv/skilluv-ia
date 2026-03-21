@@ -23,13 +23,33 @@ async def health_check() -> JSONResponse:
     except Exception:
         checks["redis"] = "unhealthy"
 
+    # MinIO
+    try:
+        from src.storage.minio_client import get_minio
+
+        client = get_minio()
+        client.list_buckets()
+        checks["minio"] = "healthy"
+    except Exception:
+        checks["minio"] = "unhealthy"
+
     all_healthy = all(v == "healthy" for v in checks.values())
+
+    # Cache stats (non bloquant)
+    cache_stats = {}
+    try:
+        from src.services._challenge_cache import get_cache_stats
+
+        cache_stats = await get_cache_stats()
+    except Exception:
+        pass
 
     return JSONResponse(
         status_code=200 if all_healthy else 503,
         content={
             "status": "healthy" if all_healthy else "degraded",
             "services": checks,
+            "cache": cache_stats,
             "version": "0.1.0",
             "environment": settings.environment,
         },
