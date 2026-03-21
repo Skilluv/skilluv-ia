@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package skilluv.ai;
+
+option python_generic_services = true;
+
+// Service de génération de challenges
+service ChallengeService {
+  // Génère un challenge complet à partir de paramètres
+  rpc GenerateChallenge (GenerateChallengeRequest) returns (GenerateChallengeResponse);
+
+  // Valide la cohérence d'un challenge existant
+  rpc ValidateChallenge (ValidateChallengeRequest) returns (ValidateChallengeResponse);
+}
+
+// --- Requêtes ---
+
+message GenerateChallengeRequest {
+  string skill_domain = 1;        // code | design | game | security
+  int32 difficulty = 2;           // 1-5
+  int32 duration_minutes = 3;     // 5-180
+  string mode = 4;                // solo | team
+  string tone = 5;                // serious | fun | absurd
+  bool ai_allowed = 6;
+  string language = 7;            // fr | en
+  repeated string tags = 8;
+  string programming_language = 9; // optionnel, pour le domaine code
+}
+
+message ValidateChallengeRequest {
+  string title = 1;
+  string description = 2;
+  string instructions = 3;
+  repeated TestCase test_cases = 4;
+}
+
+// --- Réponses ---
+
+message GenerateChallengeResponse {
+  bool success = 1;
+  GeneratedChallenge challenge = 2;
+  string error_message = 3;       // vide si success
+}
+
+message ValidateChallengeResponse {
+  bool valid = 1;
+  repeated string issues = 2;     // liste de problèmes trouvés
+}
+
+// --- Types ---
+
+message GeneratedChallenge {
+  string title = 1;
+  string description = 2;         // Markdown
+  string instructions = 3;
+  int32 difficulty = 4;
+  int32 duration_minutes = 5;
+  string skill_domain = 6;
+  string tone = 7;
+  repeated string tags = 8;
+  string starter_code = 9;        // optionnel
+  repeated TestCase test_cases = 10;
+  string evaluation_criteria = 11;
+  int32 fragment_reward = 12;
+  bool ai_allowed = 13;
+  string language = 14;
+}
+
+message TestCase {
+  string input = 1;
+  string expected_output = 2;
+  string description = 3;
+  bool is_hidden = 4;
+}

@@ -1,0 +1,77 @@
+# Git
+.git/
+.github/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Testing
+tests/
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# BMAD workflow
+_bmad/
+_bmad.*
+_bmad-*/
+_bmad-output/
+
+# Claude Code
+.claude/
+.claude.*
+
+# Project docs
+docs/
+design-artifacts/
+*.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.sln
+*.user
+*.suo
+
+# Logs & temp
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.cache
+
+# Rust
+/target
+*.pdb
+
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Archives
+*.zip
+*.tar.gz
+*.7z

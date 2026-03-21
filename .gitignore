@@ -1,0 +1,88 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# uv
+uv.lock
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.sln
+*.user
+*.suo
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+
+# ruff
+.ruff_cache/
+
+# gRPC generated
+src/grpc_server/generated/*_pb2.py
+src/grpc_server/generated/*_pb2_grpc.py
+!src/grpc_server/generated/__init__.py
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rust
+/target
+*.pdb
+
+# BMAD workflow
+_bmad/
+_bmad.*
+_bmad-*/
+_bmad-output/
+
+# Claude Code
+.claude/
+.claude.*
+
+# Project docs (generated)
+docs/
+design-artifacts/
+
+# Logs & temp
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*.cache
+
+# Binaries
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Archives
+*.zip
+*.tar.gz
+*.7z
