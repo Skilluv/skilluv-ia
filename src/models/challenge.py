@@ -21,6 +21,10 @@ class ChallengeParams(BaseModel):
 class TestCase(BaseModel):
     """Cas de test pour la vérification automatique."""
 
+    # Empêche pytest de tenter de collecter ce BaseModel comme test class
+    # à cause du préfixe "Test" (convention pytest).
+    __test__ = False
+
     input: str
     expected_output: str
     description: str

@@ -14,13 +14,11 @@ build/
 .venv/
 venv/
 
-# uv
-uv.lock
-
 # Environment
 .env
 .env.*
 !.env.example
+!.env.production.template
 
 # IDE
 .vscode/

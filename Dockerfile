@@ -27,11 +27,12 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.11 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-# Installation deps dans un venv figé (isolé du site-packages système)
-COPY pyproject.toml uv.lock* ./
+# Installation deps dans un venv figé (isolé du site-packages système).
+# `uv sync --frozen` respecte uv.lock strictement -> build reproductible.
+COPY pyproject.toml uv.lock ./
 RUN uv venv /opt/venv && \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
-    uv pip install --python /opt/venv/bin/python --no-cache -r pyproject.toml
+    uv sync --frozen --no-dev --no-install-project
 
 # grpc_health_probe : binaire officiel pour Docker/K8s healthcheck
 ARG GRPC_HEALTH_PROBE_VERSION=v0.4.28
