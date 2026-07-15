@@ -1,0 +1,125 @@
+# docker-compose.prod.yml
+# =========================================================================
+# skilluv-ai — stack de production (single-host Hetzner CX22+).
+#
+# Diffère de docker-compose.yml (dev) sur :
+#   - image tirée depuis GHCR (pas de build local en prod)
+#   - restart: unless-stopped partout
+#   - resource limits explicites
+#   - network dédié isolé
+#   - volumes named avec labels de backup
+#
+# Déploiement :
+#   1. Copier .env.production (chiffré via sops) sur l'hôte -> /etc/skilluv/.env
+#   2. `docker compose -f docker-compose.prod.yml pull`
+#   3. `docker compose -f docker-compose.prod.yml up -d`
+#
+# Rollback : `SKILLUV_AI_IMAGE_TAG=<previous-tag> docker compose -f docker-compose.prod.yml up -d`
+# =========================================================================
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [skilluv]
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER manquant}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD manquant}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [skilluv]
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512M }
+
+  skilluv-ai:
+    image: ghcr.io/jeremie0342/skilluv-ia:${SKILLUV_AI_IMAGE_TAG:-mvp-1}
+    restart: unless-stopped
+    ports:
+      # gRPC exposé sur loopback uniquement — Caddy/nginx TLS-termine devant.
+      - "127.0.0.1:50051:50051"
+      # Metrics scraping sur loopback aussi (Prometheus est en réseau interne).
+      - "127.0.0.1:8000:8000"
+    env_file: /etc/skilluv/.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      ENVIRONMENT: production
+      LOG_LEVEL: INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks: [skilluv]
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2G }
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+      - "--storage.tsdb.path=/prometheus"
+    networks: [skilluv]
+    depends_on: [skilluv-ai]
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    ports:
+      # Grafana derrière Caddy TLS ; on n'expose pas en clair sur 0.0.0.0.
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD manquant}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3000}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./infra/grafana:/etc/grafana/provisioning/dashboards:ro
+    networks: [skilluv]
+    depends_on: [prometheus]
+
+networks:
+  skilluv:
+    driver: bridge
+
+volumes:
+  redis_data:
+    labels:
+      com.skilluv.backup: "daily"
+  minio_data:
+    labels:
+      com.skilluv.backup: "daily"
+  prometheus_data:
+    labels:
+      com.skilluv.backup: "weekly"
+  grafana_data:
+    labels:
+      com.skilluv.backup: "weekly"

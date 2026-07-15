@@ -1,0 +1,87 @@
+{
+  "_meta": {
+    "version": "0.1.0-seed",
+    "source": "skilluv-backend/migrations/0088_orientations_and_orientation_skill_map.sql",
+    "todo": "Sync avec les 31 orientations backend en phase IA-M3 (P16). Ce seed contient 8 orientations représentatives pour dev/tests.",
+    "last_synced_at": "2026-07-15",
+    "notes": [
+      "Chaque orientation liste les skill_slugs critiques (obligatoires) et nice_to_have.",
+      "Ces slugs doivent correspondre exactement à ceux du backend (services/skills.rs).",
+      "target_market: 'africa' ou 'international' oriente les recommandations en fonction du contexte du user."
+    ]
+  },
+  "orientations": [
+    {
+      "slug": "dev-frontend",
+      "label_fr": "Développeur Frontend",
+      "label_en": "Frontend Developer",
+      "critical_skills": ["html", "css", "javascript", "react"],
+      "nice_to_have_skills": ["typescript", "tailwind", "accessibility", "testing"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 4
+    },
+    {
+      "slug": "dev-backend",
+      "label_fr": "Développeur Backend",
+      "label_en": "Backend Developer",
+      "critical_skills": ["python", "sql", "rest-api", "git"],
+      "nice_to_have_skills": ["postgresql", "redis", "docker", "testing"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 5
+    },
+    {
+      "slug": "dev-mobile",
+      "label_fr": "Développeur Mobile",
+      "label_en": "Mobile Developer",
+      "critical_skills": ["react-native", "typescript", "rest-api"],
+      "nice_to_have_skills": ["swift", "kotlin", "state-management"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 5
+    },
+    {
+      "slug": "pentester-web",
+      "label_fr": "Pentester Web",
+      "label_en": "Web Penetration Tester",
+      "critical_skills": ["security-owasp", "http", "sql-injection", "xss"],
+      "nice_to_have_skills": ["burp-suite", "linux", "scripting-bash", "cryptography"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 8
+    },
+    {
+      "slug": "data-analyst",
+      "label_fr": "Analyste de données",
+      "label_en": "Data Analyst",
+      "critical_skills": ["sql", "python", "statistics", "data-viz"],
+      "nice_to_have_skills": ["excel", "power-bi", "pandas"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 6
+    },
+    {
+      "slug": "devops",
+      "label_fr": "Ingénieur DevOps",
+      "label_en": "DevOps Engineer",
+      "critical_skills": ["linux", "docker", "ci-cd", "cloud-basics"],
+      "nice_to_have_skills": ["kubernetes", "terraform", "monitoring", "scripting-bash"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 7
+    },
+    {
+      "slug": "ui-designer",
+      "label_fr": "Designer UI",
+      "label_en": "UI Designer",
+      "critical_skills": ["figma", "typography", "color-theory", "layout"],
+      "nice_to_have_skills": ["design-systems", "accessibility", "prototyping"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 4
+    },
+    {
+      "slug": "game-dev-indie",
+      "label_fr": "Développeur de jeux indépendant",
+      "label_en": "Indie Game Developer",
+      "critical_skills": ["unity", "csharp", "game-loop", "physics-basics"],
+      "nice_to_have_skills": ["shader-basics", "sound-design", "level-design"],
+      "target_markets": ["international"],
+      "typical_transition_months": 9
+    }
+  ]
+}

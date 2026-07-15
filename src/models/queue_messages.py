@@ -51,6 +51,8 @@ class MatchCriteria(BaseModel):
     min_title: str | None = None
     country: str | None = None
     languages: list[str] = Field(default_factory=list)
+    # Phase 5.4 : description libre du poste, activera le scoring sémantique.
+    job_description: str | None = None
 
 
 class TalentSnapshot(BaseModel):
@@ -64,6 +66,8 @@ class TalentSnapshot(BaseModel):
     country: str | None = None
     top_languages: list[str] = Field(default_factory=list)
     trust_score: float = 0.0
+    # Phase 5.4 : bio pour scoring sémantique (optionnelle).
+    bio: str | None = None
 
 
 class ReplayPayload(BaseModel):

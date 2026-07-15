@@ -8,6 +8,45 @@
 
 ---
 
+## 0. Décisions arrêtées (résolvent les ambiguïtés de la v1 du doc)
+
+Ces décisions ont été prises pour dé-bloquer l'exécution. Toute déviation doit être justifiée par écrit.
+
+**0.1 Stratégie proto** — On garde `proto/challenge.proto` **figé et fonctionnel** (v1). On crée `proto/skilluv_ai.proto` en parallèle (v2) qui contient les **4 services complets**. Le backend switch progressivement. `challenge.proto` sera deprecate en M6, supprimé post-MVP uniquement.
+
+**0.2 Règle unique de choix modèle Claude** — Une seule règle, plus de "sauf si > 50 artefacts" :
+
+| Méthode | Modèle | Raison |
+|---|---|---|
+| `ReviewCode` | Opus 4.7 | Analyse profonde, single-shot, qualité critique |
+| `GenerateChallenge` | Sonnet 4.6 | Créativité + structure, ratio qualité/coût |
+| `GenerateVariant` | Sonnet 4.6 | Idem GenerateChallenge |
+| `AnalyzePerformance` | Sonnet 4.6 | Verdict pédagogique, pas besoin d'Opus |
+| `SuggestCareerPath` | Haiku 4.5 | Mapping structuré, rapide et bon marché |
+
+Override possible via env `SKILLUV_AI_MODEL_<METHOD>` mais **jamais de logique conditionnelle dans le code**.
+
+**0.3 Deadline gRPC = 60s** — Opus 4.7 sur ReviewCode peut dépasser 30s. Deadline client Rust = 60s. Si un jour on dépasse, on passera en gRPC streaming (post-MVP). Cache Redis reste la vraie mitigation.
+
+**0.4 Secrets = `.env` chiffré (age/sops) + rsync** — Pas de Vault au MVP (overkill single-host Hetzner). Un jour on migrera si multi-host.
+
+**0.5 Proto versioning rules** — (a) Tout nouveau champ = `optional` (proto3) ou avec valeur par défaut sûre ; (b) **Jamais** de renumbering ; (c) Suppression d'un champ = `reserved N` + garder la doc ; (d) Chaque réponse contient `model_version: string` pour traçabilité.
+
+**0.6 Budget LLM re-calculé** — Hypothèse : 1 000 users actifs/mois, 5 submissions/user, 30 % triggent ReviewCode LLM (les autres sont couverts par tests auto).
+
+- ReviewCode : 1 500 appels × $0.05 = $75 (cache 50 % → **$37**)
+- GenerateChallenge : ~100 appels admin/mois × $0.02 = **$2**
+- GenerateVariant : ~50/mois × $0.025 = **$1**
+- AnalyzePerformance : 1 000 users × 1 fois/mois × $0.02 = $20 (cache 30 % → **$14**)
+- SuggestCareerPath : 1 000 onboardings + refresh × $0.005 = **$5**
+- CheckPlagiarism : $0 (déterministe)
+
+**Total : ~$60/mois pour 1 000 users actifs**, borne haute $150 en cas de burst. Fourchette prod révisée : **$50–150/mois**. Alerting Grafana quand dépasse $200/mois.
+
+**0.7 Estimation M3 révisée** — 8–12 jours (le prompt engineering "coach" prend toujours 2–3× ce qu'on pense). Le total MVP passe de 15–22 j à **18–27 j**.
+
+---
+
 ## 1. État actuel — synthèse audit
 
 **LOC totales : ~4 015** (Python source, hors generated + tests).
@@ -77,7 +116,7 @@ Backend a des types Rust mais **aucun endpoint appelé** encore. On peut donc **
 
 ### 3.1 Unifier le proto (Phase IA-M1)
 
-Créer `proto/skilluv_ai.proto` (remplace ou complète `challenge.proto`) avec les 4 services :
+Créer `proto/skilluv_ai.proto` **en parallèle** de `challenge.proto` (voir §0.1). Il contient les 4 services :
 
 - `CodeReviewService.ReviewCode`
 - `ChallengeGenerationService.GenerateChallenge` + `GenerateVariant`
@@ -93,7 +132,7 @@ Créer `proto/skilluv_ai.proto` (remplace ou complète `challenge.proto`) avec l
 - `CodeReviewServicer.ReviewCode(request)` → appelle `code_reviewer.review(...)` en direct.
 - `PlagiarismServicer.CheckPlagiarism(request)` → appelle `plagiarism_detector.detect(...)` en direct.
 
-**Timeout gRPC** : 30s par défaut. Prévoir `deadline` côté client Rust.
+**Timeout gRPC** : 60s (voir §0.3). Prévoir `deadline` côté client Rust.
 
 **Cache Redis** : garder le pattern actuel (clé = hash du code + params). Évite re-invoke coûteux LLM.
 
@@ -129,7 +168,7 @@ Output : {
 
 **Note importante** : ces méthodes NE doivent PAS ré-implémenter ce que le backend fait déjà (`services/skills.rs`, `services/orientations_playlist.rs`). Elles doivent **enrichir** avec de la sémantique LLM (Haiku pour vitesse + coûts) sur des snapshots pré-agrégés par le backend.
 
-**Modèle LLM recommandé** : Claude Haiku 4.5 (rapide + moins cher), sauf pour `AnalyzePerformance` où Sonnet 4.6 est mieux si le user a > 50 artefacts.
+**Modèle LLM** : voir §0.2 (règle unique). AnalyzePerformance = Sonnet 4.6, SuggestCareerPath = Haiku 4.5.
 
 ### 3.4 GenerateVariant — méthode complémentaire (Phase IA-M4)
 
@@ -166,7 +205,7 @@ Un test = un roundtrip complet (client → server → service → response). Moc
 
 - Docker image publiée (Docker Hub ou GHCR).
 - Env `.env.production` template.
-- Variables secrètes gérées via Vault ou GitHub Secrets.
+- Variables secrètes : `.env` chiffré (age/sops) + rsync (voir §0.4).
 - Health check gRPC endpoint (`grpc.health.v1.Health`).
 - Metrics Prometheus exposées sur `:8000/metrics` (déjà en place).
 - Alerting Grafana : Claude API errors > 5% sur 5min, gRPC latency p95 > 30s.
@@ -222,13 +261,7 @@ Idem : `services/plagiarism_detector.py` fonctionne déjà en async, exposer via
 
 ### 5.5 Config — Claude models
 
-Actuellement `challenge_generator` utilise Sonnet 4, `code_reviewer` utilise Opus 4.7. Standardiser :
-
-- **Opus 4.7** : `ReviewCode` (analyse profonde), `SuggestCareerPath` si > 50 artefacts.
-- **Sonnet 4.6** : `GenerateChallenge`, `GenerateVariant`, `AnalyzePerformance`.
-- **Haiku 4.5** : reformulations rapides, cache miss réhydration.
-
-Env var `SKILLUV_AI_MODEL_DEFAULT` + override par méthode.
+Actuellement `challenge_generator` utilise Sonnet 4, `code_reviewer` utilise Opus 4.7. **Standardiser selon §0.2** (règle unique, une méthode = un modèle, override par env `SKILLUV_AI_MODEL_<METHOD>`).
 
 ---
 
@@ -246,7 +279,7 @@ Env var `SKILLUV_AI_MODEL_DEFAULT` + override par méthode.
 
 ## 7. Phases séquencées
 
-**Estimation totale : 15-22 jours de dev cumulé** pour un MVP fonctionnel + testé + déployé.
+**Estimation totale : 18-27 jours de dev cumulé** pour un MVP fonctionnel + testé + déployé (voir §0.7).
 
 ### Phase IA-M1 — Unification du proto ⏱️ 1-2 jours
 
@@ -268,7 +301,7 @@ Env var `SKILLUV_AI_MODEL_DEFAULT` + override par méthode.
 
 **DoD** : backend Rust peut appeler `AiClient::review_code` et `AiClient::check_plagiarism` avec succès end-to-end.
 
-### Phase IA-M3 — TalentDetectionService (nouveau) ⏱️ 5-7 jours
+### Phase IA-M3 — TalentDetectionService (nouveau) ⏱️ 8-12 jours
 
 - [ ] `services/talent_analyzer.py` — nouveau module avec `analyze_performance()` et `suggest_career_path()`.
 - [ ] Prompts Claude Sonnet 4.6 pour AnalyzePerformance (rank readiness, gaps, next actions).
@@ -469,7 +502,7 @@ message CheckPlagiarismResponse {
 
 **Cache Redis** : hit rate visé 40-60 % sur ReviewCode. Cost divisé par 2 en moyenne.
 
-**Budget prévisionnel** : ~$50-200/mois pour 1 000 users actifs (à raffiner).
+**Budget prévisionnel** : ~$50-150/mois pour 1 000 users actifs (recalcul détaillé §0.6).
 
 ---
 

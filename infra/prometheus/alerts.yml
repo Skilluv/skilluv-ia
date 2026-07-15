@@ -1,0 +1,50 @@
+groups:
+  - name: skilluv-ai
+    interval: 30s
+    rules:
+      # --- Alertes critiques MVP (docs/MVP.md §3.6) -----------------------
+
+      - alert: SkilluvAiGrpcErrorRateHigh
+        expr: |
+          sum by (method) (rate(skilluv_ai_grpc_requests_total{status="error"}[5m]))
+            /
+          sum by (method) (rate(skilluv_ai_grpc_requests_total[5m]))
+            > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: skilluv-ai
+        annotations:
+          summary: "Taux d'erreur gRPC > 5% sur {{ $labels.method }}"
+          description: |
+            La méthode {{ $labels.method }} a un taux d'erreur au-dessus de 5%
+            depuis 5 minutes. Vérifier logs `grpc.*_servicer` et Claude upstream.
+
+      - alert: SkilluvAiGrpcLatencyP95High
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, method) (rate(skilluv_ai_grpc_request_duration_seconds_bucket[5m]))
+          ) > 30
+        for: 10m
+        labels:
+          severity: warning
+          service: skilluv-ai
+        annotations:
+          summary: "Latence gRPC p95 > 30s sur {{ $labels.method }}"
+          description: |
+            La méthode {{ $labels.method }} a une latence p95 au-dessus de 30s
+            depuis 10 minutes. La deadline gRPC côté client est de 60s
+            (MVP.md §0.3) — proche du timeout.
+
+      - alert: SkilluvAiClaudeApiErrors
+        expr: |
+          rate(skilluv_ai_external_errors_total{service="claude_api"}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          service: skilluv-ai
+        annotations:
+          summary: "Erreurs Claude API > 0.1/s"
+          description: |
+            Le taux d'erreurs Claude API dépasse 0.1/s depuis 5 minutes.
+            Vérifier status.anthropic.com et le quota.

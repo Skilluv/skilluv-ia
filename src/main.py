@@ -38,7 +38,14 @@ async def start_worker() -> None:
     from src.workers.settings import get_redis_settings
 
     # Import dynamique pour enregistrer les fonctions worker
-    from src.workers import plagiarism, talent_matcher, media_processor  # noqa: F401
+    from src.workers import (  # noqa: F401
+        analytics_ai,
+        code_reviewer,
+        media_processor,
+        plagiarism,
+        recommender,
+        talent_matcher,
+    )
 
     run_worker(
         {
@@ -46,6 +53,11 @@ async def start_worker() -> None:
                 plagiarism.process_plagiarism_job,
                 talent_matcher.process_talent_match_job,
                 media_processor.process_media_job,
+                # Phase 5 additions
+                code_reviewer.process_code_review_job,
+                recommender.process_recommendation_job,
+                analytics_ai.process_hidden_gems_job,
+                analytics_ai.process_churn_job,
             ],
             "redis_settings": get_redis_settings(),
             "max_jobs": settings.arq_max_jobs,

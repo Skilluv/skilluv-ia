@@ -9,6 +9,7 @@ dependencies = [
     "uvicorn[standard]>=0.34",
     "grpcio>=1.68",
     "grpcio-tools>=1.68",
+    "grpcio-health-checking>=1.68",
 
     # Workers async
     "arq>=0.26",

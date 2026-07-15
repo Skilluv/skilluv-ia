@@ -1,0 +1,267 @@
+syntax = "proto3";
+
+package skilluv.ai.v2;
+
+// ---------------------------------------------------------------------------
+// skilluv-ai gRPC contract v2
+//
+// Source de vérité : docs/MVP.md (Annexe A) + skilluv-backend/src/grpc/client.rs
+//
+// Versioning rules (voir MVP.md §0.5) :
+//   - Nouveau champ => optional (proto3) ou default sûr.
+//   - JAMAIS de renumbering.
+//   - Suppression => `reserved N` + doc.
+//   - Chaque response contient `model_version` pour traçabilité.
+//
+// Coexiste avec proto/challenge.proto (v1, figé). challenge.proto sera
+// deprecate en phase IA-M6 et supprimé post-MVP.
+// ---------------------------------------------------------------------------
+
+// ===========================================================================
+// 1. CodeReviewService — utilisé par backend P15.2 llm_verifier
+// ===========================================================================
+service CodeReviewService {
+  rpc ReviewCode (CodeReviewRequest) returns (CodeReviewResponse);
+}
+
+message CodeReviewRequest {
+  string submission_id = 1;
+  string code = 2;
+  string language = 3;                 // 'python' | 'rust' | 'js' | ...
+  string challenge_title = 4;
+  string challenge_instructions = 5;
+  int32  difficulty = 6;               // 1-5
+}
+
+message CodeReviewResponse {
+  int32  quality_score = 1;            // 0-100
+  string summary = 2;                  // 1-2 phrases
+  repeated string strengths = 3;
+  repeated string improvements = 4;
+  repeated Issue issues = 5;
+  repeated LearningResource resources = 6;
+  string model_version = 7;
+}
+
+message Issue {
+  string severity = 1;                 // 'blocker' | 'critical' | 'major' | 'minor'
+  string category = 2;                 // 'bug' | 'security' | 'perf' | 'style'
+  string message = 3;
+  int32  line_number = 4;
+}
+
+message LearningResource {
+  string title = 1;
+  string url = 2;
+  string kind = 3;                     // 'doc' | 'article' | 'video'
+}
+
+// ===========================================================================
+// 2. ChallengeGenerationService
+// ===========================================================================
+service ChallengeGenerationService {
+  rpc GenerateChallenge (GenerateChallengeRequest) returns (GenerateChallengeResponse);
+  rpc GenerateVariant   (GenerateVariantRequest)   returns (GenerateChallengeResponse);
+}
+
+message GenerateChallengeRequest {
+  string skill_domain = 1;             // code | design | game | security
+  int32  difficulty = 2;               // 1-5
+  int32  duration_minutes = 3;         // 5-180
+  string mode = 4;                     // solo | team
+  string tone = 5;                     // serious | fun | absurd
+  bool   ai_allowed = 6;
+  string language = 7;                 // fr | en
+  repeated string tags = 8;
+  string programming_language = 9;
+  string orientation_slug = 10;        // P16 orientations métier
+  bool   is_training = 11;
+  string project_id = 12;
+}
+
+message GenerateVariantRequest {
+  string original_challenge_id = 1;
+  string variant_type = 2;             // 'harder' | 'easier' | 'different_lang' | 'shorter' | 'longer'
+  string target_param = 3;             // ex: 'python' pour different_lang, '30' pour shorter
+  // Contexte original fourni par le backend (source de vérité : Postgres).
+  // L'IA reste stateless — pas de dépendance à un cache inter-appels.
+  GeneratedChallenge original = 4;
+}
+
+message GenerateChallengeResponse {
+  bool success = 1;
+  GeneratedChallenge challenge = 2;
+  string error_message = 3;
+  string model_version = 4;
+}
+
+message GeneratedChallenge {
+  string title = 1;
+  string description = 2;              // Markdown
+  string instructions = 3;
+  int32  difficulty = 4;
+  int32  duration_minutes = 5;
+  string skill_domain = 6;
+  string tone = 7;
+  repeated string tags = 8;
+  string starter_code = 9;
+  repeated TestCase test_cases = 10;
+  string evaluation_criteria = 11;
+  int32  fragment_reward = 12;
+  bool   ai_allowed = 13;
+  string language = 14;
+  string orientation_slug = 15;
+}
+
+message TestCase {
+  string input = 1;
+  string expected_output = 2;
+  string description = 3;
+  bool   is_hidden = 4;
+}
+
+// ===========================================================================
+// 3. TalentDetectionService — nouveau, backend attend ce contrat
+// ===========================================================================
+service TalentDetectionService {
+  rpc AnalyzePerformance (AnalyzePerformanceRequest) returns (AnalyzePerformanceResponse);
+  rpc SuggestCareerPath  (CareerPathRequest)         returns (CareerPathResponse);
+}
+
+message AnalyzePerformanceRequest {
+  string user_id = 1;
+  repeated DeliverableSnapshot deliverables = 2;
+  repeated SkillSnapshot skills = 3;
+  repeated OrientationSnapshot orientations = 4;
+  string current_rank = 5;             // ex: 'bronze', 'silver', ...
+}
+
+message AnalyzePerformanceResponse {
+  double overall_score = 1;            // [0-1]
+  repeated StrengthItem strengths = 2;
+  repeated GapItem gaps = 3;
+  repeated NextAction next_actions = 4;
+  RankReadiness rank_readiness = 5;
+  string model_version = 6;
+}
+
+message CareerPathRequest {
+  string user_id = 1;
+  repeated SkillSnapshot skills = 2;
+  repeated string working_languages = 3;
+  string target_market = 4;            // 'africa' | 'international'
+  int32  max_suggestions = 5;
+}
+
+message CareerPathResponse {
+  repeated OrientationSuggestion suggestions = 1;
+  string primary_recommendation = 2;
+  repeated string secondary_recommendations = 3;
+  string model_version = 4;
+}
+
+// -- Snapshots (fournis par le backend, pas de calcul côté IA) ---------------
+
+message DeliverableSnapshot {
+  string deliverable_id = 1;
+  string skill_slug = 2;
+  int32  wpc = 3;                      // work-proven credits
+  string verified_at = 4;              // RFC3339
+  string verifiable_by = 5;            // 'test_suite' | 'llm_evaluation' | 'attestation'
+  int32  difficulty = 6;
+}
+
+message SkillSnapshot {
+  string skill_slug = 1;
+  int32  wpc_total = 2;
+  int32  evidence_count = 3;
+  string first_evidence_at = 4;
+  string last_evidence_at = 5;
+}
+
+message OrientationSnapshot {
+  string orientation_slug = 1;
+  double completion_ratio = 2;         // [0-1]
+}
+
+// -- Items retournés ---------------------------------------------------------
+
+message StrengthItem {
+  string skill_slug = 1;
+  int32  evidence_count = 2;
+  int32  wpc_total = 3;
+}
+
+message GapItem {
+  string skill_slug = 1;
+  string importance = 2;               // 'critical' | 'nice_to_have'
+  string reason = 3;
+}
+
+message NextAction {
+  string action_type = 1;              // 'attempt_challenge' | 'seek_mentor' | 'take_attestation'
+  string target_slug = 2;
+  int32  priority = 3;                 // 1 (high) - 5 (low)
+}
+
+message RankReadiness {
+  string current_rank = 1;
+  string next_rank = 2;
+  repeated MissingCriterion missing_criteria = 3;
+  int32  estimated_days_to_promotion = 4;
+}
+
+message MissingCriterion {
+  string criterion = 1;                // ex: 'wpc_total', 'distinct_skills'
+  double current_value = 2;
+  double threshold = 3;
+}
+
+message OrientationSuggestion {
+  string orientation_slug = 1;
+  double confidence = 2;               // [0-1]
+  string match_reason = 3;
+  repeated string required_skills_missing = 4;
+  string transition_effort = 5;        // 'low' | 'medium' | 'high'
+  int32  timeline_estimate_months = 6;
+}
+
+// ===========================================================================
+// 4. PlagiarismService — utilisé par backend P14.3
+// ===========================================================================
+service PlagiarismService {
+  rpc CheckPlagiarism (CheckPlagiarismRequest) returns (CheckPlagiarismResponse);
+}
+
+message CheckPlagiarismRequest {
+  string submission_id = 1;
+  string code = 2;
+  string language = 3;
+  repeated PreviousSubmission comparison_pool = 4;
+  double threshold = 5;                // [0-1], défaut 0.85
+}
+
+message PreviousSubmission {
+  string submission_id = 1;
+  string code = 2;
+  string language = 3;
+  string submitted_at = 4;             // RFC3339
+}
+
+message CheckPlagiarismResponse {
+  double similarity_score = 1;         // [0-1]
+  string similar_submission_id = 2;    // vide si is_plagiarism=false
+  double ast_similarity = 3;
+  double embedding_similarity = 4;
+  repeated MatchedRange matched_ranges = 5;
+  bool   is_plagiarism = 6;
+  string model_version = 7;
+}
+
+message MatchedRange {
+  int32 source_start_line = 1;
+  int32 source_end_line = 2;
+  int32 target_start_line = 3;
+  int32 target_end_line = 4;
+  double confidence = 5;
+}

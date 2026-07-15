@@ -27,6 +27,28 @@ Responsibilities:
 - **Talent matching** — filtering and scoring for recruiter queries
 - **Media processing** — replay ingestion, clip generation via `ffmpeg` and MinIO
 
+## MVP status (v2 gRPC contract)
+
+The v2 gRPC contract (`skilluv.ai.v2` — see [`proto/skilluv_ai.proto`](proto/skilluv_ai.proto)) is **MVP-ready**. Phases M1 → M5 done, M6 (deployment) is the last step.
+
+| Phase | Scope | Status |
+|---|---|---|
+| M1 | Proto unification (4 services, versioning rules) | ✅ done |
+| M2 | gRPC wrappers CodeReview + Plagiarism | ✅ done |
+| M3 | TalentDetection (AnalyzePerformance + SuggestCareerPath) | ✅ done |
+| M4 | GenerateChallenge + GenerateVariant v2 | ✅ done |
+| M5 | Metrics, Grafana, alerts, e2e tests, docs | ✅ done |
+| M6 | Docker image + Hetzner deploy + secrets | ✅ done |
+
+Key entry points :
+- **Plan & decisions** : [`docs/MVP.md`](docs/MVP.md) (§0 = decisions arrêtées)
+- **API contract** : [`docs/API-CONTRACT.md`](docs/API-CONTRACT.md) (grpcurl examples for the 4 services)
+- **Deployment** : [`docs/DEPLOYMENT-HETZNER.md`](docs/DEPLOYMENT-HETZNER.md) + [`docker-compose.prod.yml`](docker-compose.prod.yml)
+- **Dashboards** : [`infra/grafana/skilluv-ai-grpc-dashboard.json`](infra/grafana/skilluv-ai-grpc-dashboard.json)
+- **Alerts** : [`infra/prometheus/alerts.yml`](infra/prometheus/alerts.yml)
+
+**Test suite** : ~230 tests, gRPC round-trips against a local `aio.server`, Claude mocked (no network cost).
+
 ## Companion repositories
 
 - [`skilluv-backend`](https://github.com/jeremie0342/skilluv-backend) — Rust + Axum API (the caller for gRPC and Redis Queue)

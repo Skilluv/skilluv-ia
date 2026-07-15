@@ -28,3 +28,18 @@ external_errors_total = Counter(
     "Erreurs d'appels à des services externes",
     ["service"],  # "claude_api", "minio", "redis"
 )
+
+# gRPC — latence par méthode (M5.1)
+grpc_request_duration_seconds = Histogram(
+    "skilluv_ai_grpc_request_duration_seconds",
+    "Latence des appels gRPC en secondes",
+    ["method"],
+    buckets=[0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0, 60.0],
+)
+
+# gRPC — compteur total, ventilé par status
+grpc_requests_total = Counter(
+    "skilluv_ai_grpc_requests_total",
+    "Nombre total d'appels gRPC",
+    ["method", "status"],  # status: 'ok' | 'error'
+)

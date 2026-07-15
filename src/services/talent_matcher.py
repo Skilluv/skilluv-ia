@@ -144,4 +144,34 @@ def _compute_relevance(
     if candidate.trust_score >= 0.7:
         matching.append(f"trust: {candidate.trust_score:.0%}")
 
+    # Sémantique embeddings (Phase 5.4) — bonus jusqu'à +15 pts si
+    # `job_description` est fournie. Score borné à 115 pour un candidat
+    # sémantiquement parfait ; les scores restent comparables entre candidats
+    # d'une même requête (même denominator implicite).
+    if criteria.job_description:
+        from src.services._matcher_embeddings import (
+            build_job_text,
+            build_profile_text,
+            semantic_similarity,
+        )
+
+        job_text = build_job_text(
+            skill_domains=criteria.skill_domains,
+            languages=criteria.languages,
+            min_title=criteria.min_title,
+            country=criteria.country,
+            extra_description=criteria.job_description,
+        )
+        profile_text = build_profile_text(
+            skill_domains=candidate.skill_domains,
+            top_languages=candidate.top_languages,
+            title=candidate.title,
+            country=candidate.country,
+            bio=candidate.bio,
+        )
+        sim = semantic_similarity(job_text, profile_text)
+        score += 15.0 * sim
+        if sim >= 0.7:
+            matching.append(f"semantic: {sim:.0%}")
+
     return score, matching
