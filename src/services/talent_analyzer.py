@@ -34,6 +34,7 @@ from src.models.talent_analysis import (
     RankReadiness,
     StrengthItem,
 )
+from src.services._talent_cache import cache_analysis, get_cached_analysis
 from src.utils.logging import get_logger
 from src.utils.metrics import external_errors_total
 
@@ -352,6 +353,11 @@ async def analyze_performance(
             rank_readiness=RankReadiness(current_rank=payload.current_rank),
         )
 
+    # Cache hit -> économie ~$0.02/appel (voir docs/MVP.md §0.6).
+    cached = await get_cached_analysis(payload)
+    if cached is not None:
+        return cached
+
     system, user = _build_analyze_prompt(payload)
     data = await _call_claude_structured(
         model=_MODEL_ANALYZE, system=system, user=user, schema=_ANALYZE_SCHEMA,
@@ -382,6 +388,8 @@ async def analyze_performance(
         gaps=len(result.gaps),
         next_actions=len(result.next_actions),
     )
+    # Best-effort caching (fail-open sur erreur Redis).
+    await cache_analysis(payload, result)
     return result
 
 

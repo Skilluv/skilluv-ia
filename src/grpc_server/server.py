@@ -8,6 +8,7 @@ Expose :
 
 from grpc import aio
 from grpc_health.v1 import health, health_pb2, health_pb2_grpc
+from grpc_reflection.v1alpha import reflection
 
 from src.config import settings
 from src.grpc_server._interceptors import MetricsInterceptor
@@ -81,6 +82,30 @@ def register_all_servicers(server: aio.Server) -> None:
     for svc in V2_SERVICE_NAMES:
         health_servicer.set(svc, health_pb2.HealthCheckResponse.SERVING)
     logger.info("grpc_health_check_ready")
+
+    # gRPC reflection : ACTIVÉE en dev pour permettre `grpcurl list` sans -proto.
+    # Désactivée en prod pour ne pas exposer le schéma au monde entier.
+    if settings.environment == "development":
+        try:
+            from src.grpc_server.generated import (
+                skilluv_ai_pb2 as _v2_pb2,
+            )
+            service_names = tuple(
+                _v2_pb2.DESCRIPTOR.services_by_name[name].full_name
+                for name in _v2_pb2.DESCRIPTOR.services_by_name
+            ) + (
+                reflection.SERVICE_NAME,
+                health.SERVICE_NAME,
+            )
+            reflection.enable_server_reflection(service_names, server)
+            logger.info("grpc_reflection_enabled", services=list(service_names))
+        except Exception as e:
+            logger.warning("grpc_reflection_setup_failed", error=str(e))
+    else:
+        logger.info(
+            "grpc_reflection_disabled",
+            reason="environment != development (sécurité prod)",
+        )
 
 
 async def serve() -> None:

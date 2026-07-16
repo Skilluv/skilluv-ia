@@ -89,6 +89,15 @@ class TestAnalyzePerformance:
             current_rank="bronze",
             skills=[SkillSnapshot(skill_slug="python", wpc_total=120, evidence_count=8)],
         )
+        # Force cache miss + no-op write pour isoler du Redis local.
+        cache_get_patch = patch(
+            "src.services.talent_analyzer.get_cached_analysis",
+            new=AsyncMock(return_value=None),
+        )
+        cache_set_patch = patch(
+            "src.services.talent_analyzer.cache_analysis",
+            new=AsyncMock(),
+        )
         fake_claude_output = {
             "overall_score": 0.72,
             "strengths": [
@@ -109,10 +118,14 @@ class TestAnalyzePerformance:
                 "estimated_days_to_promotion": 30,
             },
         }
-        with patch(
-            "src.services.talent_analyzer._call_claude_structured",
-            new=AsyncMock(return_value=fake_claude_output),
-        ) as mock_call:
+        with (
+            cache_get_patch,
+            cache_set_patch,
+            patch(
+                "src.services.talent_analyzer._call_claude_structured",
+                new=AsyncMock(return_value=fake_claude_output),
+            ) as mock_call,
+        ):
             result = await analyze_performance(payload)
 
         mock_call.assert_awaited_once()

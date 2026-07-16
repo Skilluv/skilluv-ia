@@ -7,7 +7,29 @@ Chaque domaine (code, design, game, security) a :
 - Des consignes pour les test cases
 """
 
+import json
+from functools import lru_cache
+from pathlib import Path
+
 from src.models.challenge import ChallengeParams
+
+
+@lru_cache(maxsize=1)
+def _load_orientations_catalog() -> dict:
+    path = Path(__file__).resolve().parents[1] / "data" / "orientations_catalog.json"
+    if not path.exists():
+        return {"orientations": []}
+    with path.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _find_orientation(slug: str) -> dict | None:
+    if not slug:
+        return None
+    for o in _load_orientations_catalog().get("orientations", []):
+        if o.get("slug") == slug:
+            return o
+    return None
 
 # === Guides par domaine ===
 
@@ -171,15 +193,78 @@ DIFFICULTY_DESCRIPTIONS = {
 }
 
 
+def _effective_difficulty(params: ChallengeParams) -> int:
+    """Difficulté effective après application de is_training (baisse d'1 cran).
+
+    On garde `params.difficulty` intact pour le stockage / matching, mais le
+    prompt raisonne sur une version potentiellement adoucie.
+    """
+    if params.is_training and params.difficulty > 1:
+        return params.difficulty - 1
+    return params.difficulty
+
+
+def _orientation_hint(params: ChallengeParams, lang_prefix: str) -> str:
+    """Ajoute un rappel orientation métier au prompt (skills à privilégier)."""
+    orientation = _find_orientation(params.orientation_slug)
+    if orientation is None:
+        return ""
+    label_key = "label_fr" if lang_prefix == "français" else "label_en"
+    label = orientation.get(label_key, orientation["slug"])
+    critical = orientation.get("critical_skills", [])
+    nice = orientation.get("nice_to_have_skills", [])
+    lines = [
+        f"ORIENTATION MÉTIER CIBLÉE : {label} ({params.orientation_slug})",
+        "Le challenge doit préférentiellement mobiliser les skills critiques de "
+        f"cette orientation : {', '.join(critical) or '—'}.",
+    ]
+    if nice:
+        lines.append(f"Bonus si le challenge sollicite : {', '.join(nice)}.")
+    lines.append(
+        "Reste dans le domaine demandé — l'orientation n'est qu'un biais de "
+        "contexte, pas un changement de skill_domain."
+    )
+    return "\n".join(lines)
+
+
+def _training_hint() -> str:
+    return (
+        "MODE ENTRAÎNEMENT :\n"
+        "- Ajoute plus d'exemples concrets dans description/instructions.\n"
+        "- Guide davantage le candidat (indices structurés, pseudocode partiel "
+        "accepté dans starter_code).\n"
+        "- Les test_cases visibles servent d'exemples pédagogiques : commente-les "
+        "richement dans le champ description.\n"
+        "- L'objectif est l'apprentissage, pas le filtrage."
+    )
+
+
+def _project_hint(params: ChallengeParams) -> str:
+    if not params.project_id:
+        return ""
+    return (
+        f"CONTEXTE PROJET OSS : ce challenge est lié au projet Skilluv "
+        f"`{params.project_id}`. Ancre l'énoncé dans un problème réaliste "
+        f"qui pourrait émerger de la maintenance ou de l'évolution de ce "
+        f"projet. Reste générique dans la solution (le candidat ne doit pas "
+        f"connaître le projet précis pour réussir)."
+    )
+
+
 def build_system_prompt(params: ChallengeParams) -> str:
     """Construit le prompt système complet pour la génération de challenges."""
     lang = "français" if params.language == "fr" else "English"
     domain = DOMAIN_CONTEXTS.get(params.skill_domain, DOMAIN_CONTEXTS["code"])
     tone = TONE_GUIDES.get(params.tone, TONE_GUIDES["serious"])
-    difficulty_desc = DIFFICULTY_DESCRIPTIONS.get(params.difficulty, "intermédiaire")
+    effective_diff = _effective_difficulty(params)
+    difficulty_desc = DIFFICULTY_DESCRIPTIONS.get(effective_diff, "intermédiaire")
 
     min_visible = 3
-    min_hidden = 2 if params.difficulty <= 3 else 4
+    min_hidden = 2 if effective_diff <= 3 else 4
+
+    orientation_block = _orientation_hint(params, lang)
+    training_block = _training_hint() if params.is_training else ""
+    project_block = _project_hint(params)
 
     prompt = f"""Tu es le générateur de challenges de Skilluv, une plateforme gamifiée panafricaine où les talents prouvent leurs compétences par la pratique.
 
@@ -187,7 +272,7 @@ REGLES ABSOLUES :
 - Réponds UNIQUEMENT avec un objet JSON valide, sans texte avant ou après
 - Langue du contenu : {lang}
 - Le challenge doit être réalisable dans le temps imparti ({params.duration_minutes} minutes)
-- Difficulté {params.difficulty}/5 : {difficulty_desc}
+- Difficulté {effective_diff}/5 : {difficulty_desc}
 - Mode : {params.mode}
 - IA autorisée pour le candidat : {"oui" if params.ai_allowed else "non — le challenge doit tester des compétences que l'IA ne peut pas résoudre trivialement"}
 
@@ -198,6 +283,12 @@ DOMAINE : {domain["description"]}
 {domain["examples"]}
 
 TON : {tone}
+
+{orientation_block}
+
+{training_block}
+
+{project_block}
 
 {f"Langage de programmation imposé : {params.programming_language}" if params.programming_language else "Le candidat choisit son langage de programmation." if params.skill_domain == "code" else ""}
 {f"Tags thématiques à intégrer : {', '.join(params.tags)}" if params.tags else ""}

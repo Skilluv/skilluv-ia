@@ -473,6 +473,19 @@ wheels = [
 ]
 
 [[package]]
+name = "grpcio-reflection"
+version = "1.81.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "grpcio" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c0/53/7bd579cb35ea5895cb1ef38066e2336324432b3d3eaa21f52f6b94457c2d/grpcio_reflection-1.81.1.tar.gz", hash = "sha256:3d7160000f5fdd0e241f9b1a3d402f15ebcd5f281be105b374a025f38c6434a8", size = 19203, upload-time = "2026-06-11T12:58:47.865Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3b/10/5152fbc98f6b5b4f54cdf97c585d19fe962c265774692e446ad6b4f4950c/grpcio_reflection-1.81.1-py3-none-any.whl", hash = "sha256:d82fc4ac39dd5dcfd63e577075f6a68eac4a765e66a453914bbf57caf35665d0", size = 22906, upload-time = "2026-06-11T12:58:03.183Z" },
+]
+
+[[package]]
 name = "grpcio-tools"
 version = "1.81.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1925,6 +1938,7 @@ dependencies = [
     { name = "ffmpeg-python" },
     { name = "grpcio" },
     { name = "grpcio-health-checking" },
+    { name = "grpcio-reflection" },
     { name = "grpcio-tools" },
     { name = "minio" },
     { name = "pillow" },
@@ -1965,6 +1979,7 @@ requires-dist = [
     { name = "ffmpeg-python", specifier = ">=0.2" },
     { name = "grpcio", specifier = ">=1.68" },
     { name = "grpcio-health-checking", specifier = ">=1.68" },
+    { name = "grpcio-reflection", specifier = ">=1.81.1" },
     { name = "grpcio-tools", specifier = ">=1.68" },
     { name = "minio", specifier = ">=7.2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },

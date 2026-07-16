@@ -16,6 +16,22 @@ class ChallengeParams(BaseModel):
         default=None,
         description="Langage de programmation cible (code domain)",
     )
+    # === Champs proto v2 (P16 / IA-M4+) ===
+    orientation_slug: str = Field(
+        default="",
+        description="Slug d'une orientation métier (dev-backend, pentester-web, ...). "
+        "Biaise le contexte du prompt vers cette orientation.",
+    )
+    is_training: bool = Field(
+        default=False,
+        description="Mode entraînement : abaisse la difficulté effective d'un cran "
+        "et adoucit le ton (plus d'explications, plus de guidage).",
+    )
+    project_id: str = Field(
+        default="",
+        description="ID d'un projet OSS existant. Si présent, ajoute un hint "
+        "contextuel au prompt (challenge lié à un vrai projet).",
+    )
 
 
 class TestCase(BaseModel):

@@ -10,13 +10,10 @@ dependencies = [
     "grpcio>=1.68",
     "grpcio-tools>=1.68",
     "grpcio-health-checking>=1.68",
-
     # Workers async
     "arq>=0.26",
-
     # LLM
     "anthropic>=0.42",
-
     # Plagiat — AST
     "tree-sitter>=0.24",
     "tree-sitter-python>=0.23",
@@ -27,29 +24,23 @@ dependencies = [
     "tree-sitter-cpp>=0.23",
     "tree-sitter-rust>=0.23",
     "tree-sitter-go>=0.23",
-
     # Plagiat — Embeddings
     "sentence-transformers>=3.3",
-
     # Média
     "ffmpeg-python>=0.2",
     "Pillow>=11.0",
-
     # Stockage
     "minio>=7.2",
-
     # Config & validation
     "pydantic>=2.10",
     "pydantic-settings>=2.7",
-
     # Redis
     "redis[hiredis]>=5.2",
-
     # Monitoring
     "prometheus-client>=0.21",
-
     # Logging
     "structlog>=24.4",
+    "grpcio-reflection>=1.81.1",
 ]
 
 [project.optional-dependencies]

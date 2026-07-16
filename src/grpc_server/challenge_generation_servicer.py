@@ -35,10 +35,13 @@ def _build_params(request: pb2.GenerateChallengeRequest) -> ChallengeParams:
         language=request.language or "fr",
         tags=list(request.tags),
         programming_language=request.programming_language or None,
-        # Note : orientation_slug / is_training / project_id sont dans le proto v2
-        # mais pas encore consommés par le générateur. Ils sont acceptés pour
-        # ne pas casser le contrat quand le backend les enverra ; l'enrichissement
-        # du prompt est prévu post-M4.
+        # Champs v2 (P16) — consommés par _challenge_prompts.py :
+        # - orientation_slug biaise le contexte skill (via catalogue)
+        # - is_training abaisse la difficulté effective d'un cran + guide plus
+        # - project_id ancre le contexte OSS
+        orientation_slug=request.orientation_slug or "",
+        is_training=bool(request.is_training),
+        project_id=request.project_id or "",
     )
 
 

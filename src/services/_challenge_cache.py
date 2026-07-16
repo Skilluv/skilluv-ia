@@ -36,6 +36,11 @@ def _build_cache_key(params: ChallengeParams) -> str:
         "language": params.language,
         "programming_language": params.programming_language or "",
         "tags": sorted(params.tags),
+        # Champs v2 : sinon collision entre challenges de même params mais
+        # d'orientation ou mode training différents.
+        "orientation_slug": params.orientation_slug,
+        "is_training": params.is_training,
+        "project_id": params.project_id,
     }
     raw = json.dumps(key_data, sort_keys=True)
     digest = hashlib.sha256(raw.encode()).hexdigest()[:16]
