@@ -154,13 +154,13 @@ class TestGenerateChallenge:
 
     @pytest.mark.asyncio
     async def test_generate_challenge_success(self, mock_claude_response: dict) -> None:
-        mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=json.dumps(mock_claude_response))]
+        mock_provider = MagicMock()
+        mock_provider.complete_structured = AsyncMock(return_value=mock_claude_response)
 
-        mock_client = AsyncMock()
-        mock_client.messages.create = AsyncMock(return_value=mock_message)
-
-        with patch("src.services.challenge_generator._get_client", return_value=mock_client):
+        with patch(
+            "src.services.challenge_generator.get_llm",
+            return_value=mock_provider,
+        ):
             params = ChallengeParams(
                 skill_domain="code",
                 difficulty=3,
@@ -183,29 +183,31 @@ class TestGenerateChallenge:
     async def test_generate_challenge_strips_markdown_fences(
         self, mock_claude_response: dict
     ) -> None:
-        """Claude enveloppe parfois le JSON dans ```json ... ```."""
-        wrapped = f"```json\n{json.dumps(mock_claude_response)}\n```"
-        mock_message = MagicMock()
-        mock_message.content = [MagicMock(text=wrapped)]
-
-        mock_client = AsyncMock()
-        mock_client.messages.create = AsyncMock(return_value=mock_message)
-
-        with patch("src.services.challenge_generator._get_client", return_value=mock_client):
+        """Backward compat : le provider gère l'unwrap/validation en amont,
+        challenge_generator ne fait plus de parsing text-based."""
+        mock_provider = MagicMock()
+        mock_provider.complete_structured = AsyncMock(return_value=mock_claude_response)
+        with patch(
+            "src.services.challenge_generator.get_llm",
+            return_value=mock_provider,
+        ):
             params = ChallengeParams(skill_domain="code", difficulty=2, duration_minutes=15)
             result = await generate_challenge(params)
-
         assert result.title == "Le Tri des Pingouins"
 
     @pytest.mark.asyncio
     async def test_generate_challenge_invalid_json_raises(self) -> None:
-        mock_message = MagicMock()
-        mock_message.content = [MagicMock(text="This is not JSON at all")]
+        """Si le provider raise ValidationError, elle se propage."""
+        from src.exceptions import ValidationError as SkilluvValidationError
 
-        mock_client = AsyncMock()
-        mock_client.messages.create = AsyncMock(return_value=mock_message)
-
-        with patch("src.services.challenge_generator._get_client", return_value=mock_client):
+        mock_provider = MagicMock()
+        mock_provider.complete_structured = AsyncMock(
+            side_effect=SkilluvValidationError("JSON invalide", {})
+        )
+        with patch(
+            "src.services.challenge_generator.get_llm",
+            return_value=mock_provider,
+        ):
             params = ChallengeParams(skill_domain="code", difficulty=1, duration_minutes=10)
             with pytest.raises(Exception) as exc_info:
                 await generate_challenge(params)

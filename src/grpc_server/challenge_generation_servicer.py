@@ -9,6 +9,7 @@ from __future__ import annotations
 import grpc
 
 from src.exceptions import ExternalServiceError, ValidationError
+from src.llm import ModelTier, get_llm
 from src.models.challenge import ChallengeParams, GeneratedChallenge, TestCase
 from src.services.challenge_generator import generate_challenge, generate_variant
 from src.utils.logging import get_logger
@@ -18,7 +19,9 @@ from src.grpc_server.generated import skilluv_ai_pb2_grpc as pb2_grpc
 
 logger = get_logger("grpc.challenge_generation_servicer")
 
-_MODEL_VERSION = "claude-sonnet-4-20250514"
+def _model_version() -> str:
+    """Nom du modèle actif pour ChallengeGeneration (provider-dependent)."""
+    return get_llm().model_for_tier(ModelTier.STANDARD)
 
 
 # --- proto <-> pydantic --------------------------------------------------
@@ -117,7 +120,7 @@ class ChallengeGenerationServicer(pb2_grpc.ChallengeGenerationServiceServicer):
             params = _build_params(request)
         except Exception as e:
             return pb2.GenerateChallengeResponse(
-                success=False, error_message=f"invalid params: {e}", model_version=_MODEL_VERSION,
+                success=False, error_message=f"invalid params: {e}", model_version=_model_version(),
             )
         logger.info(
             "grpc_generate_challenge_received",
@@ -129,16 +132,16 @@ class ChallengeGenerationServicer(pb2_grpc.ChallengeGenerationServiceServicer):
             challenge = await generate_challenge(params)
         except ExternalServiceError as e:
             return pb2.GenerateChallengeResponse(
-                success=False, error_message=str(e), model_version=_MODEL_VERSION,
+                success=False, error_message=str(e), model_version=_model_version(),
             )
         except ValidationError as e:
             return pb2.GenerateChallengeResponse(
-                success=False, error_message=str(e), model_version=_MODEL_VERSION,
+                success=False, error_message=str(e), model_version=_model_version(),
             )
         return pb2.GenerateChallengeResponse(
             success=True,
             challenge=_generated_to_proto(challenge),
-            model_version=_MODEL_VERSION,
+            model_version=_model_version(),
         )
 
     async def GenerateVariant(
@@ -150,7 +153,7 @@ class ChallengeGenerationServicer(pb2_grpc.ChallengeGenerationServiceServicer):
             return pb2.GenerateChallengeResponse(
                 success=False,
                 error_message="original challenge must be provided inline",
-                model_version=_MODEL_VERSION,
+                model_version=_model_version(),
             )
         original = _proto_original_to_pydantic(request.original)
         logger.info(
@@ -167,16 +170,16 @@ class ChallengeGenerationServicer(pb2_grpc.ChallengeGenerationServiceServicer):
             )
         except ValidationError as e:
             return pb2.GenerateChallengeResponse(
-                success=False, error_message=str(e), model_version=_MODEL_VERSION,
+                success=False, error_message=str(e), model_version=_model_version(),
             )
         except ExternalServiceError as e:
             return pb2.GenerateChallengeResponse(
-                success=False, error_message=str(e), model_version=_MODEL_VERSION,
+                success=False, error_message=str(e), model_version=_model_version(),
             )
         return pb2.GenerateChallengeResponse(
             success=True,
             challenge=_generated_to_proto(variant),
-            model_version=_MODEL_VERSION,
+            model_version=_model_version(),
         )
 
 

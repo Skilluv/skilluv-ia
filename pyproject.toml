@@ -41,6 +41,7 @@ dependencies = [
     # Logging
     "structlog>=24.4",
     "grpcio-reflection>=1.81.1",
+    "jsonschema>=4.26.0",
 ]
 
 [project.optional-dependencies]

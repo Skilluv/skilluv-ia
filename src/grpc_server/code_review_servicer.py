@@ -13,6 +13,7 @@ from __future__ import annotations
 import grpc
 
 from src.exceptions import ExternalServiceError, ValidationError
+from src.llm import ModelTier, get_llm
 from src.models.code_review import CodeReviewPayload, CodeReviewResult
 from src.services.code_reviewer import review_code
 from src.utils.logging import get_logger
@@ -34,7 +35,13 @@ _SEVERITY_MAP = {
     "info": "minor",
 }
 
-_MODEL_VERSION = "claude-opus-4-7"
+def _model_version() -> str:
+    """Nom du modèle actif pour ReviewCode (provider-dependent).
+
+    Retourné dans la réponse gRPC pour audit — permet au backend de tracer
+    quel modèle a produit quel review (§MVP.md 0.5).
+    """
+    return get_llm().model_for_tier(ModelTier.PREMIUM)
 
 
 def _build_payload(request: pb2.CodeReviewRequest) -> CodeReviewPayload:
@@ -59,7 +66,7 @@ def _to_response(result: CodeReviewResult) -> pb2.CodeReviewResponse:
         strengths=list(result.strengths),
         # Backend cap à 3 côté Rust ; on envoie tout ce qu'on a, tri déjà fait.
         improvements=[f.suggestion for f in result.findings if f.suggestion],
-        model_version=_MODEL_VERSION,
+        model_version=_model_version(),
     )
     for finding in result.findings:
         message = finding.title

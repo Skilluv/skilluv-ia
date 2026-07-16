@@ -1,0 +1,52 @@
+# docker-compose.dev.yml — overlay dev avec LLM local (Ollama)
+#
+# Utilisation :
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Ajoute un service Ollama à la stack dev existante. skilluv-ai est configuré
+# pour taper sur `ollama:11434` (au lieu de localhost).
+#
+# Premier démarrage : pull d'un modèle (voir docs/LOCAL-LLM.md §Setup).
+#   docker compose exec ollama ollama pull qwen2.5-coder:7b-instruct-q4_K_M
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      # Exposé aussi sur l'hôte pour permettre l'usage sans passer par skilluv-ai
+      # (utile pour tester avec grpcurl ou pour développer un client externe).
+      - "11434:11434"
+    volumes:
+      # Cache modèles persistant — évite de re-pull à chaque redémarrage
+      # (le modèle 7B fait ~4.5 GB).
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Sans GPU : CPU par défaut. Décommentez si vous avez un GPU NVIDIA :
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  skilluv-ai:
+    # Override du service défini dans docker-compose.yml pour qu'il utilise
+    # le container Ollama plutôt que localhost.
+    environment:
+      SKILLUV_AI_LLM_PROVIDER: ollama
+      OLLAMA_ENDPOINT: http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+volumes:
+  ollama_data:
+    labels:
+      com.skilluv.backup: "weekly"

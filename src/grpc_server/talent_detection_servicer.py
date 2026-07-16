@@ -9,6 +9,7 @@ from __future__ import annotations
 import grpc
 
 from src.exceptions import ExternalServiceError, ValidationError
+from src.llm import ModelTier, get_llm
 from src.models.talent_analysis import (
     AnalyzePerformancePayload,
     AnalyzePerformanceResult,
@@ -26,8 +27,14 @@ from src.grpc_server.generated import skilluv_ai_pb2_grpc as pb2_grpc
 
 logger = get_logger("grpc.talent_detection_servicer")
 
-_MODEL_VERSION_ANALYZE = "claude-sonnet-4-6"
-_MODEL_VERSION_CAREER = "claude-haiku-4-5-20251001"
+
+def _model_version(tier: ModelTier) -> str:
+    """Nom du modèle actif pour le tier (provider-dependent).
+
+    Retourné dans la réponse gRPC pour audit — permet au backend de tracer
+    quel modèle a produit quel verdict, quel que soit le provider (§0.5).
+    """
+    return get_llm().model_for_tier(tier)
 
 
 # --- proto -> pydantic ----------------------------------------------------
@@ -93,7 +100,7 @@ def _build_career_payload(request: pb2.CareerPathRequest) -> CareerPathPayload:
 def _analyze_to_response(result: AnalyzePerformanceResult) -> pb2.AnalyzePerformanceResponse:
     response = pb2.AnalyzePerformanceResponse(
         overall_score=result.overall_score,
-        model_version=_MODEL_VERSION_ANALYZE,
+        model_version=_model_version(ModelTier.STANDARD),
     )
     for s in result.strengths:
         response.strengths.add(
@@ -121,7 +128,7 @@ def _career_to_response(result: CareerPathResult) -> pb2.CareerPathResponse:
     response = pb2.CareerPathResponse(
         primary_recommendation=result.primary_recommendation,
         secondary_recommendations=list(result.secondary_recommendations),
-        model_version=_MODEL_VERSION_CAREER,
+        model_version=_model_version(ModelTier.FAST),
     )
     for s in result.suggestions:
         response.suggestions.add(

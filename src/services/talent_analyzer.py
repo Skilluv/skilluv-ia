@@ -18,10 +18,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-import anthropic
-
-from src.config import settings
-from src.exceptions import ExternalServiceError, ValidationError
+from src.llm import ModelTier, get_llm
 from src.models.talent_analysis import (
     AnalyzePerformancePayload,
     AnalyzePerformanceResult,
@@ -36,22 +33,8 @@ from src.models.talent_analysis import (
 )
 from src.services._talent_cache import cache_analysis, get_cached_analysis
 from src.utils.logging import get_logger
-from src.utils.metrics import external_errors_total
 
 logger = get_logger("service.talent_analyzer")
-
-_client: anthropic.AsyncAnthropic | None = None
-
-# Modèles Claude — règle unique (MVP.md §0.2).
-_MODEL_ANALYZE = "claude-sonnet-4-6"
-_MODEL_CAREER = "claude-haiku-4-5-20251001"
-
-
-def _get_client() -> anthropic.AsyncAnthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-    return _client
 
 
 @lru_cache(maxsize=1)
@@ -278,46 +261,27 @@ def _build_career_prompt(payload: CareerPathPayload) -> tuple[str, str]:
 
 
 # =========================================================================
-# Appels Claude
+# Wrapper LLM — un seul point d'appel pour permettre l'ancien mock
+# `_call_claude_structured` de continuer à fonctionner dans les tests.
 # =========================================================================
 
 
 async def _call_claude_structured(
     *,
-    model: str,
+    tier: ModelTier,
     system: str,
     user: str,
     schema: dict[str, Any],
     max_tokens: int = 4000,
 ) -> dict[str, Any]:
-    """Appel Claude avec structured outputs. Renvoie le dict JSON parsé."""
-    client = _get_client()
-    try:
-        async with client.messages.stream(
-            model=model,
-            max_tokens=max_tokens,
-            output_config={
-                "format": {"type": "json_schema", "schema": schema},
-            },
-            system=system,
-            messages=[{"role": "user", "content": user}],
-        ) as stream:
-            final = await stream.get_final_message()
-    except anthropic.APIError as e:
-        external_errors_total.labels(service="claude_api").inc()
-        raise ExternalServiceError(
-            f"Claude API error ({model}): {e.message}",
-            {"status_code": getattr(e, "status_code", None)},
-        ) from e
+    """Appel LLM structuré via le provider actif (Claude / Ollama / ...).
 
-    raw = next((b.text for b in final.content if b.type == "text"), "")
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError as e:
-        raise ValidationError(
-            f"Claude returned invalid JSON despite schema ({model})",
-            {"raw_response": raw[:500], "error": str(e)},
-        ) from e
+    Nom historique conservé pour compat des tests existants qui patch cette
+    fonction. Sous le capot : `get_llm().complete_structured(...)`.
+    """
+    return await get_llm().complete_structured(
+        tier=tier, system=system, user=user, schema=schema, max_tokens=max_tokens,
+    )
 
 
 # =========================================================================
@@ -360,7 +324,7 @@ async def analyze_performance(
 
     system, user = _build_analyze_prompt(payload)
     data = await _call_claude_structured(
-        model=_MODEL_ANALYZE, system=system, user=user, schema=_ANALYZE_SCHEMA,
+        tier=ModelTier.STANDARD, system=system, user=user, schema=_ANALYZE_SCHEMA,
     )
 
     result = AnalyzePerformanceResult(
@@ -412,7 +376,7 @@ async def suggest_career_path(payload: CareerPathPayload) -> CareerPathResult:
 
     system, user = _build_career_prompt(payload)
     data = await _call_claude_structured(
-        model=_MODEL_CAREER,
+        tier=ModelTier.FAST,
         system=system,
         user=user,
         schema=_CAREER_SCHEMA,

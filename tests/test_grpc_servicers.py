@@ -102,9 +102,23 @@ class TestCodeReviewMapping:
         assert response.resources[0].kind == "doc"
         assert response.resources[0].url == ""
 
-    def test_model_version_stamped(self):
-        response = codereview_to_response(_sample_review_result())
+    def test_model_version_stamped_with_active_provider(self):
+        # Force le provider Claude pour vérifier le mapping PREMIUM -> Opus.
+        from unittest.mock import patch
+        from src.llm.claude_provider import ClaudeProvider
+        with patch(
+            "src.grpc_server.code_review_servicer.get_llm",
+            return_value=ClaudeProvider(),
+        ):
+            response = codereview_to_response(_sample_review_result())
         assert response.model_version == "claude-opus-4-7"
+
+    def test_model_version_non_empty_with_default_provider(self):
+        # Avec le provider par défaut (Ollama en dev, Claude en prod), on
+        # exige juste une chaîne non vide — le mapping strict est testé
+        # ailleurs par provider.
+        response = codereview_to_response(_sample_review_result())
+        assert response.model_version != ""
 
     def test_severity_map_covers_all_internal_severities(self):
         # Défense contre régression : si le service ajoute une severity,
@@ -281,7 +295,7 @@ class TestGrpcIntegration:
                     )
             assert response.quality_score == 82
             assert len(response.issues) == 2
-            assert response.model_version == "claude-opus-4-7"
+            assert response.model_version != ""
         finally:
             await server.stop(grace=None)
 

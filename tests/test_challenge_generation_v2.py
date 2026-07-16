@@ -98,13 +98,12 @@ class TestResolveVariantMetadata:
 # =========================================================================
 
 
-def _mock_claude_response(payload_dict: dict) -> MagicMock:
-    """Construit un mock de messages.create return value."""
-    mock_content = MagicMock()
-    mock_content.text = json.dumps(payload_dict)
-    mock_message = MagicMock()
-    mock_message.content = [mock_content]
-    return mock_message
+def _mock_provider(payload_dict: dict) -> MagicMock:
+    """Construit un mock du LLMProvider actif."""
+    provider = MagicMock()
+    provider.complete_structured = AsyncMock(return_value=payload_dict)
+    provider.model_for_tier = MagicMock(return_value="test-model")
+    return provider
 
 
 class TestGenerateVariant:
@@ -135,35 +134,32 @@ class TestGenerateVariant:
             ],
             "evaluation_criteria": "Gestion premiers correcte.",
         }
-        mock_client = MagicMock()
-        mock_client.messages.create = AsyncMock(
-            return_value=_mock_claude_response(fake_claude_output)
-        )
+        provider = _mock_provider(fake_claude_output)
         with patch(
-            "src.services.challenge_generator._get_client", return_value=mock_client,
+            "src.services.challenge_generator.get_llm", return_value=provider,
         ):
             variant = await generate_variant(original, "harder", "3")
 
         assert variant.title == "FizzBuzz Avancé"
         assert variant.difficulty == 3
         assert variant.duration_minutes == 30
-        # Metadata héritée
         assert variant.skill_domain == "code"
         assert variant.language == "fr"
-        # fragment_reward recalculé
         assert variant.fragment_reward > 0
-        # Un seul appel Claude
-        mock_client.messages.create.assert_awaited_once()
+        provider.complete_structured.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_variant_falls_back_to_expected_metadata_when_claude_omits(self):
+    async def test_variant_falls_back_to_expected_metadata_when_llm_omits(self):
         original = _sample_original()
-        # Claude retourne un JSON minimal, sans difficulty ni duration
-        fake = {"title": "FizzBuzz Facile", "description": "Simplifié."}
-        mock_client = MagicMock()
-        mock_client.messages.create = AsyncMock(return_value=_mock_claude_response(fake))
+        # LLM retourne un JSON minimal, sans difficulty ni duration
+        fake = {
+            "title": "FizzBuzz Facile", "description": "Simplifié.",
+            "instructions": "", "test_cases": [],
+            "evaluation_criteria": "", "tags": [],
+        }
+        provider = _mock_provider(fake)
         with patch(
-            "src.services.challenge_generator._get_client", return_value=mock_client,
+            "src.services.challenge_generator.get_llm", return_value=provider,
         ):
             variant = await generate_variant(original, "easier", "")
         # _resolve_variant_metadata a calculé difficulty=1
@@ -256,11 +252,10 @@ class TestChallengeGenerationServicerOverWire:
             "test_cases": [],
             "evaluation_criteria": "OK",
         }
-        mock_client = MagicMock()
-        mock_client.messages.create = AsyncMock(return_value=_mock_claude_response(fake))
+        provider = _mock_provider(fake)
         try:
             with patch(
-                "src.services.challenge_generator._get_client", return_value=mock_client,
+                "src.services.challenge_generator.get_llm", return_value=provider,
             ):
                 original_pb = _generated_to_proto(_sample_original())
                 async with aio.insecure_channel(f"127.0.0.1:{port}") as channel:
@@ -275,6 +270,7 @@ class TestChallengeGenerationServicerOverWire:
             assert response.success is True
             assert response.challenge.title == "FizzBuzz Hard"
             assert response.challenge.difficulty == 4
-            assert response.model_version.startswith("claude-sonnet-4")
+            # Le provider actif détermine model_version — assertion neutre.
+            assert response.model_version != ""
         finally:
             await server.stop(grace=None)

@@ -4,26 +4,11 @@ Utilise Claude Opus 4.7 avec `output_config.format` (structured outputs) pour
 garantir un JSON valide et éviter le prompt-parsing fragile.
 """
 
-import json
-
-import anthropic
-
-from src.config import settings
-from src.exceptions import ExternalServiceError, ValidationError
+from src.llm import ModelTier, get_llm
 from src.models.code_review import CodeReviewFinding, CodeReviewPayload, CodeReviewResult
 from src.utils.logging import get_logger
-from src.utils.metrics import external_errors_total
 
 logger = get_logger("service.code_reviewer")
-
-_client: anthropic.AsyncAnthropic | None = None
-
-
-def _get_client() -> anthropic.AsyncAnthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-    return _client
 
 
 # Schéma JSON pour structured outputs — Claude retournera un JSON qui matche.
@@ -141,38 +126,15 @@ async def review_code(payload: CodeReviewPayload) -> CodeReviewResult:
             ],
         )
 
-    client = _get_client()
-
-    try:
-        # Streaming pour éviter les timeouts sur reviews longs.
-        async with client.messages.stream(
-            model="claude-opus-4-7",
-            max_tokens=8000,
-            thinking={"type": "adaptive"},
-            output_config={
-                "effort": "medium",
-                "format": {"type": "json_schema", "schema": _REVIEW_SCHEMA},
-            },
-            system=_build_system_prompt(payload),
-            messages=[{"role": "user", "content": _build_user_prompt(payload)}],
-        ) as stream:
-            final = await stream.get_final_message()
-    except anthropic.APIError as e:
-        external_errors_total.labels(service="claude_api").inc()
-        raise ExternalServiceError(
-            f"Claude API error during code review: {e.message}",
-            {"status_code": getattr(e, "status_code", None)},
-        ) from e
-
-    # `output_config.format` avec json_schema garantit un TextBlock avec JSON valide.
-    raw_text = next((b.text for b in final.content if b.type == "text"), "")
-    try:
-        data = json.loads(raw_text)
-    except json.JSONDecodeError as e:
-        raise ValidationError(
-            "Claude a retourné un JSON invalide malgré le schema",
-            {"raw_response": raw_text[:500], "error": str(e)},
-        ) from e
+    # PREMIUM tier : Opus 4.7 côté Claude, Qwen 14B/32B côté Ollama.
+    # Analyse profonde requise pour un review pédagogique de qualité.
+    data = await get_llm().complete_structured(
+        tier=ModelTier.PREMIUM,
+        system=_build_system_prompt(payload),
+        user=_build_user_prompt(payload),
+        schema=_REVIEW_SCHEMA,
+        max_tokens=8000,
+    )
 
     findings = [CodeReviewFinding.model_validate(f) for f in data.get("findings", [])]
 
@@ -204,7 +166,5 @@ async def review_code(payload: CodeReviewPayload) -> CodeReviewResult:
         score=score,
         findings_count=len(findings),
         fragments_bonus=fragments_bonus,
-        input_tokens=final.usage.input_tokens,
-        output_tokens=final.usage.output_tokens,
     )
     return result

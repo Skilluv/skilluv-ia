@@ -1,33 +1,54 @@
-"""Service de génération de challenges via Claude API."""
+"""Service de génération de challenges via LLM (Claude / Ollama / ...)."""
 
 import json
-from typing import Literal
+from typing import Any, Literal
 
-import anthropic
-
-from src.config import settings
-from src.exceptions import ExternalServiceError, ValidationError
+from src.exceptions import ValidationError
+from src.llm import ModelTier, get_llm
 from src.models.challenge import ChallengeParams, GeneratedChallenge
 from src.services._challenge_prompts import build_system_prompt, build_user_prompt
 from src.utils.logging import get_logger
-from src.utils.metrics import external_errors_total
 
 VariantType = Literal["harder", "easier", "different_lang", "shorter", "longer"]
 
 _VALID_VARIANT_TYPES: set[str] = {"harder", "easier", "different_lang", "shorter", "longer"}
 
-_MODEL_CHALLENGE = "claude-sonnet-4-20250514"
-
 logger = get_logger("service.challenge_generator")
 
-_client: anthropic.AsyncAnthropic | None = None
 
-
-def _get_client() -> anthropic.AsyncAnthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-    return _client
+# JSON Schema pour la sortie challenge — force le LLM à respecter la structure.
+# Utilisé par ClaudeProvider (native json_schema) et OllamaProvider (validation
+# post-call + prompt hint).
+_CHALLENGE_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "instructions": {"type": "string"},
+        "starter_code": {"type": ["string", "null"]},
+        "test_cases": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "input": {"type": "string"},
+                    "expected_output": {"type": "string"},
+                    "description": {"type": "string"},
+                    "is_hidden": {"type": "boolean"},
+                },
+                "required": ["input", "expected_output", "description"],
+                "additionalProperties": False,
+            },
+        },
+        "evaluation_criteria": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": [
+        "title", "description", "instructions", "test_cases",
+        "evaluation_criteria", "tags",
+    ],
+    "additionalProperties": False,
+}
 
 
 def _calculate_fragment_reward(params: ChallengeParams) -> int:
@@ -94,26 +115,16 @@ async def generate_challenge(params: ChallengeParams) -> GeneratedChallenge:
         language=params.language,
     )
 
-    client = _get_client()
     system_prompt = build_system_prompt(params)
     user_prompt = build_user_prompt(params)
 
-    try:
-        response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4096,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
-    except anthropic.APIError as e:
-        external_errors_total.labels(service="claude_api").inc()
-        raise ExternalServiceError(
-            f"Claude API error: {e.message}",
-            {"status_code": getattr(e, "status_code", None)},
-        ) from e
-
-    raw_text = response.content[0].text.strip()
-    data = _extract_json(raw_text)
+    data = await get_llm().complete_structured(
+        tier=ModelTier.STANDARD,
+        system=system_prompt,
+        user=user_prompt,
+        schema=_CHALLENGE_SCHEMA,
+        max_tokens=4096,
+    )
 
     fragment_reward = _calculate_fragment_reward(params)
 
@@ -276,22 +287,15 @@ async def generate_variant(
         target_param=target_param,
     )
     system, user = _build_variant_prompt(original, variant_type, target_param)
-    client = _get_client()
-    try:
-        response = await client.messages.create(
-            model=_MODEL_CHALLENGE,
-            max_tokens=4096,
-            system=system,
-            messages=[{"role": "user", "content": user}],
-        )
-    except anthropic.APIError as e:
-        external_errors_total.labels(service="claude_api").inc()
-        raise ExternalServiceError(
-            f"Claude API error (variant): {e.message}",
-            {"status_code": getattr(e, "status_code", None)},
-        ) from e
-
-    data = _extract_json(response.content[0].text)
+    # Variant reprend la même schema structurée que generate_challenge —
+    # cohérence du contrat de sortie côté LLM (facilite Ollama en particulier).
+    data = await get_llm().complete_structured(
+        tier=ModelTier.STANDARD,
+        system=system,
+        user=user,
+        schema=_CHALLENGE_SCHEMA,
+        max_tokens=4096,
+    )
 
     # Difficulty / duration : préfère la valeur retournée si présente, sinon
     # calcule à partir des règles de _resolve_variant_metadata (defensive).

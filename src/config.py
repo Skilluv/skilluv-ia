@@ -42,6 +42,22 @@ class Settings(BaseSettings):
     # Redis result TTL
     result_ttl_seconds: int = 86400  # 24h
 
+    # === LLM provider (Claude API vs Ollama local vs autre) ===
+    # Défaut : ollama pour dev en local (gratuit, souverain), à basculer sur
+    # claude en prod tant qu'un GPU dédié n'est pas provisionné. Voir
+    # docs/LOCAL-LLM.md pour le setup.
+    llm_provider: str = "ollama"
+
+    # Endpoint Ollama (docker-compose.dev.yml expose sur ollama:11434, local
+    # dev via installateur natif = http://localhost:11434).
+    ollama_endpoint: str = "http://localhost:11434"
+
+    # Mapping tier -> modèle Ollama. Défauts adaptés à ~16 GB RAM CPU-only.
+    # Voir docs/LOCAL-LLM.md pour d'autres profils (32 GB, GPU dédié, etc.).
+    ollama_model_premium: str = "qwen2.5-coder:7b-instruct-q4_K_M"
+    ollama_model_standard: str = "qwen2.5-coder:7b-instruct-q4_K_M"
+    ollama_model_fast: str = "qwen2.5-coder:3b-instruct-q4_K_M"
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
