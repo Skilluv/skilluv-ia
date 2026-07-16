@@ -90,6 +90,20 @@ services:
     networks: [skilluv]
     depends_on: [skilluv-ai]
 
+  alertmanager:
+    # Décommentez le mount après avoir créé alertmanager.local.yml sur l'hôte
+    # (copie de infra/alertmanager/alertmanager.yml, remplir CHANGE_ME).
+    image: prom/alertmanager:latest
+    restart: unless-stopped
+    volumes:
+      - ./infra/alertmanager/alertmanager.local.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    networks: [skilluv]
+    profiles: ["alerting"]  # Activé via --profile alerting
+
   grafana:
     image: grafana/grafana:latest
     restart: unless-stopped
@@ -121,5 +135,8 @@ volumes:
     labels:
       com.skilluv.backup: "weekly"
   grafana_data:
+    labels:
+      com.skilluv.backup: "weekly"
+  alertmanager_data:
     labels:
       com.skilluv.backup: "weekly"

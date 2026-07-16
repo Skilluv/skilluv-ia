@@ -1,0 +1,20 @@
+{
+  "submission_id": "bench-sub-{{.RequestNumber}}",
+  "code": "def hello():\n    return 'world'",
+  "language": "python",
+  "comparison_pool": [
+    {
+      "submission_id": "bench-cand-1",
+      "code": "def hello():\n    return 'world'",
+      "language": "python",
+      "submitted_at": "2026-07-01T10:00:00Z"
+    },
+    {
+      "submission_id": "bench-cand-2",
+      "code": "class Node:\n    def __init__(self):\n        pass",
+      "language": "python",
+      "submitted_at": "2026-07-01T10:00:00Z"
+    }
+  ],
+  "threshold": 0.0
+}

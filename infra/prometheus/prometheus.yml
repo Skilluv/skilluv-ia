@@ -5,6 +5,14 @@ global:
 rule_files:
   - "alerts.yml"
 
+# Alertmanager cible : envoie les alertes déclenchées.
+# Le container 'alertmanager' est optionnel (profile: alerting).
+# Si non démarré, Prometheus tentera de push sans succès (log warn) — pas de crash.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
 scrape_configs:
   - job_name: "skilluv-ai"
     static_configs:

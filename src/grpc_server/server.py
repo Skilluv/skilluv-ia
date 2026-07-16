@@ -12,6 +12,7 @@ from grpc_reflection.v1alpha import reflection
 
 from src.config import settings
 from src.grpc_server._interceptors import MetricsInterceptor
+from src.grpc_server._rate_limit import RateLimitInterceptor
 from src.grpc_server.challenge_generation_servicer import ChallengeGenerationServicer
 from src.grpc_server.challenge_servicer import ChallengeServiceServicer
 from src.grpc_server.code_review_servicer import CodeReviewServicer
@@ -110,7 +111,11 @@ def register_all_servicers(server: aio.Server) -> None:
 
 async def serve() -> None:
     """Démarre le serveur gRPC sur le port configuré."""
-    server = aio.server(interceptors=[MetricsInterceptor()])
+    # Ordre : rate-limit AVANT metrics — un appel bloqué en 429 ne pollue
+    # pas les histogrammes de latence Claude.
+    server = aio.server(
+        interceptors=[RateLimitInterceptor(), MetricsInterceptor()]
+    )
     register_all_servicers(server)
 
     listen_addr = f"0.0.0.0:{settings.grpc_port}"

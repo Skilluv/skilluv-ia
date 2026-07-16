@@ -1,0 +1,15 @@
+{
+  "user_id": "bench-user-{{.RequestNumber}}",
+  "current_rank": "bronze",
+  "skills": [
+    { "skill_slug": "python", "wpc_total": 120, "evidence_count": 8, "first_evidence_at": "2026-01-01T00:00:00Z", "last_evidence_at": "2026-07-01T00:00:00Z" },
+    { "skill_slug": "sql", "wpc_total": 60, "evidence_count": 4, "first_evidence_at": "2026-03-01T00:00:00Z", "last_evidence_at": "2026-06-01T00:00:00Z" }
+  ],
+  "deliverables": [
+    { "deliverable_id": "d-1", "skill_slug": "python", "wpc": 40, "verified_at": "2026-06-01T10:00:00Z", "verifiable_by": "test_suite", "difficulty": 3 },
+    { "deliverable_id": "d-2", "skill_slug": "sql", "wpc": 20, "verified_at": "2026-06-15T10:00:00Z", "verifiable_by": "test_suite", "difficulty": 2 }
+  ],
+  "orientations": [
+    { "orientation_slug": "dev-backend", "completion_ratio": 0.55 }
+  ]
+}

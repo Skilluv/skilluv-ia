@@ -121,15 +121,33 @@ class TestSimpleTextHashSimilarity:
         assert sim > 0.7
 
 
+def _requires_real_embedding_model() -> None:
+    """Skip si sentence-transformers ne peut pas se charger (HF Hub / offline).
+
+    Le fallback shingle_fallback ne donne pas les mêmes garanties sémantiques :
+    les assertions "similaire mais réécrit -> sim > 0.5" ne tiennent que sur
+    le vrai modèle. On skip explicitement plutôt que d'échouer en local sans réseau.
+    """
+    from src.services._plagiarism_embeddings import _get_model
+
+    if _get_model() is None:
+        pytest.skip(
+            "sentence-transformers model unavailable (offline / HF rate limit) — "
+            "test sémantique nécessite le vrai modèle"
+        )
+
+
 class TestComputeEmbeddingSimilarity:
     @pytest.mark.asyncio
     async def test_identical_code(self) -> None:
+        # Ce test tient même en fallback (shingles identiques -> 1.0).
         code = "def hello():\n    return 'world'"
         sim = await compute_embedding_similarity(code, code)
         assert sim > 0.95
 
     @pytest.mark.asyncio
     async def test_similar_code(self) -> None:
+        _requires_real_embedding_model()
         code_a = "def add(x, y):\n    return x + y"
         code_b = "def sum(a, b):\n    return a + b"
         sim = await compute_embedding_similarity(code_a, code_b)
@@ -137,6 +155,7 @@ class TestComputeEmbeddingSimilarity:
 
     @pytest.mark.asyncio
     async def test_different_code(self) -> None:
+        _requires_real_embedding_model()
         code_a = "for i in range(10):\n    print(i)"
         code_b = "class Database:\n    def __init__(self, host, port):\n        self.connection = connect(host, port)"
         sim = await compute_embedding_similarity(code_a, code_b)

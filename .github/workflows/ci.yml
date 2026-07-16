@@ -10,6 +10,7 @@ jobs:
   check:
     name: Lint and test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -17,14 +18,38 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: 'latest'
+          enable-cache: true
 
       - name: Set up Python
         run: uv python install 3.12
 
-      - name: Install dependencies
+      - name: Install dependencies (frozen)
+        # --frozen exige uv.lock à jour → protège contre les drifts silencieux.
         run: uv sync --frozen
 
+      - name: Generate protobuf stubs
+        # skilluv_ai_pb2*.py sont gitignored (build artifacts). CI doit les
+        # régénérer avant pytest sinon les tests de contrat échouent.
+        run: |
+          uv run python -m grpc_tools.protoc \
+            -Iproto \
+            --python_out=src/grpc_server/generated \
+            --grpc_python_out=src/grpc_server/generated \
+            proto/challenge.proto proto/skilluv_ai.proto
+          # Fix imports absolus -> relatifs (idem scripts/generate_proto.sh)
+          for stub in src/grpc_server/generated/challenge_pb2_grpc.py src/grpc_server/generated/skilluv_ai_pb2_grpc.py; do
+            uv run python -c "
+          import re, sys
+          p = sys.argv[1]
+          s = open(p, 'r', encoding='utf-8').read()
+          s = re.sub(r'^import (\w+_pb2) as ', r'from . import \1 as ', s, flags=re.MULTILINE)
+          open(p, 'w', encoding='utf-8').write(s)
+          " "$stub"
+          done
+
       - name: Ruff lint
+        # Non bloquant tant que le code n'est pas 100% clean (~20 warnings existants).
+        # À passer en strict une fois nettoyé.
         run: uv run ruff check .
         continue-on-error: true
 
@@ -32,6 +57,7 @@ jobs:
         run: uv run ruff format --check .
         continue-on-error: true
 
-      - name: Pytest
-        run: uv run pytest
-        continue-on-error: true
+      - name: Pytest (unit)
+        # Strict : un test qui échoue casse la CI.
+        # Skip integration/ car nécessite Redis + réseau HF Hub.
+        run: uv run pytest tests/ --ignore=tests/integration -v

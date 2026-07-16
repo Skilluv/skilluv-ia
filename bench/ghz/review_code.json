@@ -1,0 +1,8 @@
+{
+  "submission_id": "bench-sub-{{.RequestNumber}}",
+  "code": "def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)\n\nprint(fibonacci(10))",
+  "language": "python",
+  "challenge_title": "Fibonacci récursif",
+  "challenge_instructions": "Implémenter la suite de Fibonacci en récursif et afficher F(10).",
+  "difficulty": 2
+}

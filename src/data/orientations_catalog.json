@@ -1,13 +1,14 @@
 {
   "_meta": {
-    "version": "0.1.0-seed",
+    "version": "0.2.0-draft",
     "source": "skilluv-backend/migrations/0088_orientations_and_orientation_skill_map.sql",
-    "todo": "Sync avec les 31 orientations backend en phase IA-M3 (P16). Ce seed contient 8 orientations représentatives pour dev/tests.",
-    "last_synced_at": "2026-07-15",
+    "todo": "Draft étendu à 22 orientations métier tech. À réconcilier byte-à-byte avec les 31 orientations backend une fois la migration 0088 accessible. Les slugs marqués (*) sont des candidats à confirmer.",
+    "last_synced_at": "2026-07-16",
     "notes": [
       "Chaque orientation liste les skill_slugs critiques (obligatoires) et nice_to_have.",
-      "Ces slugs doivent correspondre exactement à ceux du backend (services/skills.rs).",
-      "target_market: 'africa' ou 'international' oriente les recommandations en fonction du contexte du user."
+      "Les slugs doivent correspondre exactement à ceux du backend (services/skills.rs).",
+      "target_market: 'africa' ou 'international' oriente les recommandations en fonction du contexte user.",
+      "typical_transition_months : estimation pour un profil ayant les critical_skills à 50%."
     ]
   },
   "orientations": [
@@ -30,6 +31,15 @@
       "typical_transition_months": 5
     },
     {
+      "slug": "dev-fullstack",
+      "label_fr": "Développeur Fullstack",
+      "label_en": "Fullstack Developer",
+      "critical_skills": ["javascript", "react", "python", "sql", "rest-api"],
+      "nice_to_have_skills": ["typescript", "docker", "postgresql", "auth"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 7
+    },
+    {
       "slug": "dev-mobile",
       "label_fr": "Développeur Mobile",
       "label_en": "Mobile Developer",
@@ -37,6 +47,15 @@
       "nice_to_have_skills": ["swift", "kotlin", "state-management"],
       "target_markets": ["africa", "international"],
       "typical_transition_months": 5
+    },
+    {
+      "slug": "dev-mobile-flutter",
+      "label_fr": "Développeur Mobile Flutter",
+      "label_en": "Flutter Mobile Developer",
+      "critical_skills": ["flutter", "dart", "rest-api"],
+      "nice_to_have_skills": ["firebase", "state-management", "testing"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 4
     },
     {
       "slug": "pentester-web",
@@ -48,6 +67,15 @@
       "typical_transition_months": 8
     },
     {
+      "slug": "security-analyst",
+      "label_fr": "Analyste sécurité (SOC)",
+      "label_en": "Security Analyst (SOC)",
+      "critical_skills": ["linux", "networking", "log-analysis", "siem"],
+      "nice_to_have_skills": ["scripting-bash", "python", "threat-hunting"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 6
+    },
+    {
       "slug": "data-analyst",
       "label_fr": "Analyste de données",
       "label_en": "Data Analyst",
@@ -55,6 +83,24 @@
       "nice_to_have_skills": ["excel", "power-bi", "pandas"],
       "target_markets": ["africa", "international"],
       "typical_transition_months": 6
+    },
+    {
+      "slug": "data-engineer",
+      "label_fr": "Ingénieur Données",
+      "label_en": "Data Engineer",
+      "critical_skills": ["python", "sql", "airflow", "cloud-basics"],
+      "nice_to_have_skills": ["spark", "kafka", "dbt", "docker"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 7
+    },
+    {
+      "slug": "ml-engineer",
+      "label_fr": "Ingénieur Machine Learning",
+      "label_en": "Machine Learning Engineer",
+      "critical_skills": ["python", "statistics", "ml-basics", "sql"],
+      "nice_to_have_skills": ["pytorch", "sklearn", "mlops", "cloud-basics"],
+      "target_markets": ["international"],
+      "typical_transition_months": 10
     },
     {
       "slug": "devops",
@@ -66,11 +112,83 @@
       "typical_transition_months": 7
     },
     {
+      "slug": "sre",
+      "label_fr": "Site Reliability Engineer",
+      "label_en": "Site Reliability Engineer",
+      "critical_skills": ["linux", "monitoring", "networking", "python"],
+      "nice_to_have_skills": ["kubernetes", "prometheus", "grafana", "incident-response"],
+      "target_markets": ["international"],
+      "typical_transition_months": 9
+    },
+    {
+      "slug": "cloud-architect",
+      "label_fr": "Architecte Cloud",
+      "label_en": "Cloud Architect",
+      "critical_skills": ["cloud-basics", "networking", "security-basics", "cost-management"],
+      "nice_to_have_skills": ["aws", "gcp", "azure", "terraform"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 10
+    },
+    {
+      "slug": "qa-automation",
+      "label_fr": "Ingénieur QA Automation",
+      "label_en": "QA Automation Engineer",
+      "critical_skills": ["testing", "python", "selenium", "ci-cd"],
+      "nice_to_have_skills": ["cypress", "playwright", "api-testing"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 5
+    },
+    {
+      "slug": "embedded",
+      "label_fr": "Développeur Embarqué",
+      "label_en": "Embedded Developer",
+      "critical_skills": ["c", "cpp", "microcontrollers", "electronics-basics"],
+      "nice_to_have_skills": ["rtos", "rust", "linux-embedded"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 9
+    },
+    {
+      "slug": "blockchain",
+      "label_fr": "Développeur Blockchain",
+      "label_en": "Blockchain Developer",
+      "critical_skills": ["solidity", "javascript", "cryptography"],
+      "nice_to_have_skills": ["web3", "hardhat", "smart-contract-audit"],
+      "target_markets": ["international"],
+      "typical_transition_months": 8
+    },
+    {
       "slug": "ui-designer",
       "label_fr": "Designer UI",
       "label_en": "UI Designer",
       "critical_skills": ["figma", "typography", "color-theory", "layout"],
       "nice_to_have_skills": ["design-systems", "accessibility", "prototyping"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 4
+    },
+    {
+      "slug": "product-designer",
+      "label_fr": "Product Designer",
+      "label_en": "Product Designer",
+      "critical_skills": ["figma", "user-research", "wireframing", "prototyping"],
+      "nice_to_have_skills": ["design-systems", "usability-testing", "front-end-basics"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 6
+    },
+    {
+      "slug": "ux-researcher",
+      "label_fr": "UX Researcher",
+      "label_en": "UX Researcher",
+      "critical_skills": ["user-research", "interviews", "usability-testing"],
+      "nice_to_have_skills": ["statistics", "figma", "reporting"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 5
+    },
+    {
+      "slug": "tech-writer",
+      "label_fr": "Rédacteur technique",
+      "label_en": "Technical Writer",
+      "critical_skills": ["markdown", "documentation", "clarity-writing"],
+      "nice_to_have_skills": ["git", "openapi", "static-site-generators"],
       "target_markets": ["africa", "international"],
       "typical_transition_months": 4
     },
@@ -82,6 +200,15 @@
       "nice_to_have_skills": ["shader-basics", "sound-design", "level-design"],
       "target_markets": ["international"],
       "typical_transition_months": 9
+    },
+    {
+      "slug": "game-dev-web",
+      "label_fr": "Développeur de jeux web",
+      "label_en": "Web Game Developer",
+      "critical_skills": ["javascript", "canvas", "game-loop"],
+      "nice_to_have_skills": ["phaser", "webgl", "audio-api"],
+      "target_markets": ["africa", "international"],
+      "typical_transition_months": 6
     }
   ]
 }

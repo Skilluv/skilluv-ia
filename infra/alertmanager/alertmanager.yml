@@ -1,0 +1,72 @@
+# infra/alertmanager/alertmanager.yml — TEMPLATE
+#
+# Config Alertmanager pour les alertes définies dans infra/prometheus/alerts.yml.
+# Deux destinations : email (défaut) + Slack webhook (optionnel).
+#
+# Rendre exécutable :
+#   1. Copier -> alertmanager.local.yml sur l'hôte prod
+#   2. Remplacer les CHANGE_ME
+#   3. Ajouter au docker-compose.prod.yml (section commentée en bas)
+#
+# Chiffrement recommandé : sops (voir DEPLOYMENT-HETZNER.md §4).
+
+global:
+  # Timeout après lequel une alerte résolue passe en "resolved" auto
+  resolve_timeout: 5m
+
+  # SMTP (utilisé par le receiver 'email')
+  smtp_smarthost: 'CHANGE_ME_smtp.example.com:587'
+  smtp_from: 'alerts@skilluv.example.com'
+  smtp_auth_username: 'CHANGE_ME'
+  smtp_auth_password: 'CHANGE_ME'
+  smtp_require_tls: true
+
+route:
+  # Route par défaut : tout part sur le receiver 'default-email'
+  receiver: 'default-email'
+  # Regroupe les alertes similaires pour éviter le spam
+  group_by: ['alertname', 'service', 'severity']
+  # Attend 30s avant d'envoyer une nouvelle alerte (grouper)
+  group_wait: 30s
+  # Renotifie toutes les 4h tant que l'alerte reste active
+  repeat_interval: 4h
+
+  routes:
+    # Alertes critiques -> également Slack si le webhook est configuré
+    - matchers:
+        - severity="critical"
+      receiver: 'critical-team'
+      continue: true # laisse tomber aussi sur le receiver parent
+
+receivers:
+  - name: 'default-email'
+    email_configs:
+      - to: 'ops@skilluv.example.com'
+        send_resolved: true
+        headers:
+          Subject: '[skilluv-ai] {{ .GroupLabels.alertname }} - {{ .Status }}'
+
+  - name: 'critical-team'
+    # Décommentez et remplissez si vous voulez Slack :
+    # slack_configs:
+    #   - api_url: 'CHANGE_ME_https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXX'
+    #     channel: '#skilluv-alerts'
+    #     send_resolved: true
+    #     title: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
+    #     text: |
+    #       {{ range .Alerts }}
+    #       *{{ .Annotations.summary }}*
+    #       {{ .Annotations.description }}
+    #       {{ end }}
+    email_configs:
+      - to: 'oncall@skilluv.example.com'
+        send_resolved: true
+
+inhibit_rules:
+  # Si latence gRPC élevée déclenche, ne pas doubler avec l'alerte error rate
+  # (souvent conséquence directe).
+  - source_matchers:
+      - alertname="SkilluvAiGrpcLatencyP95High"
+    target_matchers:
+      - alertname="SkilluvAiGrpcErrorRateHigh"
+    equal: ['service']
