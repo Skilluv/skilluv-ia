@@ -37,6 +37,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # L'image embarque torch + sentence-transformers + tree-sitter-* + ffmpeg.
+      # Le runner default (~14 GB) ne suffit pas avec la layer cache Docker.
+      # On libère ~30 GB avant de commencer.
+      - name: Free disk space on runner
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false     # on garde les images déjà pull (buildx)
+          swap-storage: true
+
       - name: Set up QEMU (multi-arch)
         uses: docker/setup-qemu-action@v3
 
@@ -75,8 +89,11 @@ jobs:
             VERSION=${{ github.ref_name }}
             VCS_REF=${{ github.sha }}
             BUILD_DATE=${{ steps.meta.outputs.tags && github.event.head_commit.timestamp || '' }}
+          # cache-to mode=min évite d'exporter toutes les layers intermédiaires
+          # (qui contiennent torch, transformers, etc. et remplissent le cache
+          # GHA en heures). mode=min = seulement le layer final.
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
 
       - name: Summary
         run: |
