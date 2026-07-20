@@ -133,7 +133,7 @@ chmod 600 /etc/skilluv/.env
 Sur l'hôte, en tant que `skilluv` :
 
 ```bash
-git clone https://github.com/jeremie0342/skilluv-ia.git ~/skilluv-ia
+git clone https://github.com/skilluv/skilluv-ia.git ~/skilluv-ia
 cd ~/skilluv-ia
 git checkout mvp-1
 

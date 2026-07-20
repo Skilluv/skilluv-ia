@@ -53,7 +53,7 @@ services:
         limits: { cpus: "1.0", memory: 512M }
 
   skilluv-ai:
-    image: ghcr.io/jeremie0342/skilluv-ia:${SKILLUV_AI_IMAGE_TAG:-mvp-1}
+    image: ghcr.io/skilluv/skilluv-ia:${SKILLUV_AI_IMAGE_TAG:-mvp-1}
     restart: unless-stopped
     ports:
       # gRPC exposé sur loopback uniquement — Caddy/nginx TLS-termine devant.

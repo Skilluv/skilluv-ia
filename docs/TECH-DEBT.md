@@ -16,7 +16,7 @@
 
 | # | Item | Statut | Commit / PR | Notes |
 |---|---|---|---|---|
-| 1 | Publier image `ghcr.io/jeremie0342/skilluv-ia:mvp-1` | ⏳ | `.github/workflows/release.yml` prêt | Attend `git tag mvp-1` + push |
+| 1 | Publier image `ghcr.io/skilluv/skilluv-ia:mvp-1` | ⏳ | `.github/workflows/release.yml` prêt | Attend `git tag mvp-1` + push |
 | 2 | Rate-limiting per-caller | ✅ | `7d18830`+ | `_rate_limit.py`, 11 tests |
 | 3 | gRPC health check | ✅ | `2b1dda9` | `grpc.health.v1` conforme |
 

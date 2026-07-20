@@ -51,7 +51,7 @@ ARG VERSION=0.1.0-mvp
 
 LABEL org.opencontainers.image.title="skilluv-ai" \
       org.opencontainers.image.description="Skilluv AI microservice (gRPC v2 + workers)" \
-      org.opencontainers.image.source="https://github.com/jeremie0342/skilluv-ia" \
+      org.opencontainers.image.source="https://github.com/skilluv/skilluv-ia" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \

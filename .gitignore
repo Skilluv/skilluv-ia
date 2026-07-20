@@ -58,7 +58,7 @@ _bmad.*
 _bmad-*/
 _bmad-output/
 
-# Claude Code
+# AI coding assistant caches
 .claude/
 .claude.*
 

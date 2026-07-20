@@ -19,7 +19,7 @@
 <!-- Skilluv is AI-friendly. Please indicate the assistance level used, if any. This helps us track transparently how the community works with AI. -->
 - [ ] No AI assistance
 - [ ] Autocomplete (Copilot inline, Cursor tab, etc.)
-- [ ] Pair programming (Copilot Chat, Cursor Chat, Claude, ChatGPT)
+- [ ] Pair programming (AI coding assistants such as Copilot, Cursor, ChatGPT, etc.)
 - [ ] Generated then refactored
 - [ ] Generated as-is
 

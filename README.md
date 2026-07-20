@@ -14,7 +14,7 @@
 
 Skilluv is a community platform training the African OSS generation through real contributions to real open source projects. Every completed challenge produces a verifiable artifact exportable to recruiters. **Talents never pay for access — companies do.**
 
-Full product vision in the [backend repository](https://github.com/jeremie0342/skilluv-backend).
+Full product vision in the [backend repository](https://github.com/skilluv/skilluv-backend).
 
 ## What this repo contains
 
@@ -51,9 +51,9 @@ Key entry points :
 
 ## Companion repositories
 
-- [`skilluv-backend`](https://github.com/jeremie0342/skilluv-backend) — Rust + Axum API (the caller for gRPC and Redis Queue)
-- [`skilluv-frontend`](https://github.com/jeremie0342/skilluv-frontend) — SvelteKit web app for talents
-- [`skilluv-admin`](https://github.com/jeremie0342/skilluv-admin) — SvelteKit admin panel
+- [`skilluv-backend`](https://github.com/skilluv/skilluv-backend) — Rust + Axum API (the caller for gRPC and Redis Queue)
+- [`skilluv-frontend`](https://github.com/skilluv/skilluv-frontend) — SvelteKit web app for talents
+- [`skilluv-admin`](https://github.com/skilluv/skilluv-admin) — SvelteKit admin panel
 
 ## Architecture
 
@@ -85,7 +85,7 @@ Rust Backend ──push──►  skilluv:queue:plagiarism  ──►  Plagiaris
 **Prerequisites**: Python 3.12+, `uv`, Docker (for Redis, MinIO, and the Rust backend).
 
 ```bash
-git clone https://github.com/jeremie0342/skilluv-ia.git
+git clone https://github.com/skilluv/skilluv-ia.git
 cd skilluv-ia
 cp .env.example .env
 # edit .env — CLAUDE_API_KEY, REDIS_URL, MINIO_ENDPOINT, etc.
@@ -120,4 +120,4 @@ Distributed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.
 
 ## Origin
 
-Skilluv is built solo by [Jeremie Zitti](https://github.com/jeremie0342), a Beninese engineer. Public launch: **January 2027**.
+Skilluv is built solo by [Jeremie Zitti](https://github.com/skilluv), a Beninese engineer. Public launch: **January 2027**.

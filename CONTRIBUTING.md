@@ -59,7 +59,7 @@ Example: `feat(auth): add magic link expiration configuration`
 
 ## AI policy
 
-Skilluv is AI-friendly. You may use Copilot, Cursor, Claude, ChatGPT, or any other AI tool to write, review, or refactor code. We only ask that you:
+Skilluv is AI-friendly. You may use any AI coding assistant (Copilot, Cursor, ChatGPT, etc.) to write, review, or refactor code. We only ask that you:
 
 - **Verify** the code works as intended — you own the PR
 - **Disclose** significant AI assistance in the PR description (a single sentence is enough)
