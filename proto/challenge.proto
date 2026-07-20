@@ -2,13 +2,23 @@ syntax = "proto3";
 
 package skilluv.ai;
 
-// Service de génération de challenges
+// DEPRECATED (v1) — Migré vers `skilluv.ai.v2.ChallengeGenerationService`
+// depuis IA-M2. Ce fichier reste pour catcher les callers non migrés ; le
+// servicer log `grpc_v1_call_detected` avec le peer sur chaque appel.
+// Retrait planifié M+2 si aucun warning en prod pendant 30 j.
+// Voir docs/BACKEND-INTEGRATION.md §1.8.
 service ChallengeService {
+  option deprecated = true;
+
   // Génère un challenge complet à partir de paramètres
-  rpc GenerateChallenge (GenerateChallengeRequest) returns (GenerateChallengeResponse);
+  rpc GenerateChallenge (GenerateChallengeRequest) returns (GenerateChallengeResponse) {
+    option deprecated = true;
+  }
 
   // Valide la cohérence d'un challenge existant
-  rpc ValidateChallenge (ValidateChallengeRequest) returns (ValidateChallengeResponse);
+  rpc ValidateChallenge (ValidateChallengeRequest) returns (ValidateChallengeResponse) {
+    option deprecated = true;
+  }
 }
 
 // --- Requêtes ---

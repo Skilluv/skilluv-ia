@@ -13,7 +13,6 @@ Stratégie :
 import hashlib
 import json
 
-from src.config import settings
 from src.models.challenge import ChallengeParams, GeneratedChallenge
 from src.utils.logging import get_logger
 from src.utils.redis_client import get_redis

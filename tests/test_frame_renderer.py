@@ -3,8 +3,6 @@
 import os
 import tempfile
 
-import pytest
-
 from src.services._frame_renderer import (
     _tokenize_line,
     render_frame,

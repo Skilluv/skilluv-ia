@@ -7,14 +7,16 @@ RPC et incrémente le compteur `grpc_requests_total` avec le status final.
 from __future__ import annotations
 
 import time
-from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import grpc
 from grpc.aio import ServerInterceptor
 
 from src.utils.logging import get_logger
 from src.utils.metrics import grpc_request_duration_seconds, grpc_requests_total
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 logger = get_logger("grpc.interceptor")
 

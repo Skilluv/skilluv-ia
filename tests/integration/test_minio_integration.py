@@ -4,7 +4,6 @@ from io import BytesIO
 
 import pytest
 
-
 TEST_BUCKET = "skilluv-test"
 
 

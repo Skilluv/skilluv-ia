@@ -65,6 +65,24 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM", "TCH"]
 
+[tool.ruff.lint.per-file-ignores]
+# gRPC servicers doivent matcher les method names PascalCase du .proto —
+# renaming en snake_case briserait le contrat gRPC.
+"src/grpc_server/*_servicer.py" = ["N802"]
+# Les prompts LLM sont des chaînes multilignes intentionnellement longues
+# (lisibilité côté lecture > wrapping arbitraire). Ne pas casser au milieu
+# d'une phrase de prompt.
+"src/services/_challenge_prompts.py" = ["E501"]
+"src/services/_talent_prompts.py" = ["E501"]
+"src/services/_analytics_prompts.py" = ["E501"]
+# Champs Pydantic avec description longue (une ligne = un champ, plus lisible).
+"src/models/challenge.py" = ["E501"]
+"src/models/queue_messages.py" = ["E501"]
+"src/models/job_results.py" = ["E501"]
+# Tests : longueur de ligne moins strict, assertRaises(Exception) accepté
+# pour tester des erreurs non-typées, et zip() sans strict acceptable.
+"tests/**/*.py" = ["E501", "B017", "B905", "N806"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true

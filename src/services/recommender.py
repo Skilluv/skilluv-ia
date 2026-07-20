@@ -13,7 +13,6 @@ import json
 import anthropic
 
 from src.config import settings
-from src.exceptions import ExternalServiceError
 from src.models.recommendations import (
     CandidateChallenge,
     ChallengeRecommendation,

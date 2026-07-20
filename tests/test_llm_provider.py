@@ -18,7 +18,6 @@ from src.llm.claude_provider import ClaudeProvider
 from src.llm.factory import get_llm, reset_provider_for_tests
 from src.llm.ollama_provider import OllamaProvider
 
-
 # =========================================================================
 # ModelTier
 # =========================================================================
@@ -43,18 +42,21 @@ class TestFactory:
     def test_default_from_settings(self):
         with patch("src.llm.factory.settings") as s:
             s.llm_provider = "ollama"
+            s.mock_llm = False
             provider = get_llm()
         assert provider.name == "ollama"
 
     def test_claude_selection(self):
         with patch("src.llm.factory.settings") as s:
             s.llm_provider = "claude"
+            s.mock_llm = False
             provider = get_llm()
         assert provider.name == "claude"
 
     def test_singleton_stable(self):
         with patch("src.llm.factory.settings") as s:
             s.llm_provider = "ollama"
+            s.mock_llm = False
             p1 = get_llm()
             p2 = get_llm()
         assert p1 is p2
@@ -62,8 +64,17 @@ class TestFactory:
     def test_unknown_raises(self):
         with patch("src.llm.factory.settings") as s:
             s.llm_provider = "nonsense"
+            s.mock_llm = False
             with pytest.raises(ValueError, match="Unknown LLM provider"):
                 get_llm()
+
+    def test_mock_flag_overrides_provider_selection(self):
+        """SKILLUV_AI_MOCK_CLAUDE=1 court-circuite le provider configuré."""
+        with patch("src.llm.factory.settings") as s:
+            s.llm_provider = "claude"
+            s.mock_llm = True
+            provider = get_llm()
+        assert provider.name == "mock"
 
 
 # =========================================================================
@@ -166,14 +177,13 @@ class TestOllamaProviderStructured:
             p,
             "_call_ollama_chat",
             new=AsyncMock(side_effect=["broken 1", "broken 2"]),
-        ):
-            with pytest.raises(ValidationError, match="did not produce valid JSON"):
-                await p.complete_structured(
-                    tier=ModelTier.FAST,
-                    system="sys",
-                    user="usr",
-                    schema=SAMPLE_SCHEMA,
-                )
+        ), pytest.raises(ValidationError, match="did not produce valid JSON"):
+            await p.complete_structured(
+                tier=ModelTier.FAST,
+                system="sys",
+                user="usr",
+                schema=SAMPLE_SCHEMA,
+            )
 
     @pytest.mark.asyncio
     async def test_prompt_correction_injected_on_retry(self):
@@ -208,8 +218,10 @@ class TestOllamaProviderHTTP:
         mock_client.post = AsyncMock(
             side_effect=httpx.ConnectError("connection refused"),
         )
-        with patch.object(p, "_get_client", return_value=mock_client):
-            with pytest.raises(ExternalServiceError, match="Ollama HTTP error"):
-                await p._call_ollama_chat(
-                    model="test", system="s", user="u", max_tokens=100,
-                )
+        with (
+            patch.object(p, "_get_client", return_value=mock_client),
+            pytest.raises(ExternalServiceError, match="Ollama HTTP error"),
+        ):
+            await p._call_ollama_chat(
+                model="test", system="s", user="u", max_tokens=100,
+            )

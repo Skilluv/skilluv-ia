@@ -61,7 +61,11 @@ def _build_system_prompt(payload: CodeReviewPayload) -> str:
             "Adopte un ton de senior peer-reviewer. Sois direct, "
             "concentre-toi sur les subtilités et les trade-offs."
         ),
-    }[payload.user_level if payload.user_level in ("beginner", "intermediate", "advanced") else "intermediate"]
+    }[
+        payload.user_level
+        if payload.user_level in ("beginner", "intermediate", "advanced")
+        else "intermediate"
+    ]
 
     return (
         "Tu es un mentor senior en code review pour la plateforme Skilluv "
@@ -74,7 +78,7 @@ def _build_system_prompt(payload: CodeReviewPayload) -> str:
         "- overall_score sur 100 : 90+ excellent, 70-89 bien, 50-69 correct, <50 à retravailler\n"
         "- strengths : au moins 1 point positif (motivation)\n"
         "- findings : 3 à 8 remarques concrètes, triées par sévérité décroissante\n"
-        "- learning_resources : 1 à 3 pistes concrètes (nom de pattern, doc, article) — pas d'URLs inventées\n"
+        "- learning_resources : 1 à 3 pistes (nom pattern, doc, article) — pas d'URLs inventées\n"
         "- Si le code est vide/invalide, mets un score bas et explique gentiment\n"
         "- Reste en français (langue de la plateforme)"
     )

@@ -6,18 +6,13 @@ par le prompt system, sans casser le comportement par défaut (backward compat).
 
 from __future__ import annotations
 
-import pytest
-
 from src.models.challenge import ChallengeParams
 from src.services._challenge_cache import _build_cache_key
 from src.services._challenge_prompts import (
     _effective_difficulty,
     _find_orientation,
-    _load_orientations_catalog,
     build_system_prompt,
-    build_user_prompt,
 )
-
 
 # =========================================================================
 # Chargement catalogue
@@ -94,7 +89,8 @@ class TestPromptOrientation:
             orientation_slug="pentester-web", language="en",
         )
         prompt = build_system_prompt(p)
-        assert "Web Penetration Tester" in prompt
+        # Catalog synced with backend mig 0088 → label_en = "Web Pentester".
+        assert "Web Pentester" in prompt
 
     def test_unknown_orientation_ignored_silently(self):
         p = ChallengeParams(

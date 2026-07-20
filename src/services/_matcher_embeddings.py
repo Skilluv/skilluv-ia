@@ -71,11 +71,11 @@ def _shingle_sim(a: str, b: str, n: int = 3) -> float:
     """Fallback : trigram-set Jaccard."""
     if not a or not b:
         return 0.0
-    A = {a[i : i + n] for i in range(len(a) - n + 1)}
-    B = {b[i : i + n] for i in range(len(b) - n + 1)}
-    if not A or not B:
+    shingles_a = {a[i : i + n] for i in range(len(a) - n + 1)}
+    shingles_b = {b[i : i + n] for i in range(len(b) - n + 1)}
+    if not shingles_a or not shingles_b:
         return 0.0
-    return len(A & B) / len(A | B)
+    return len(shingles_a & shingles_b) / len(shingles_a | shingles_b)
 
 
 def semantic_similarity(job_text: str, profile_text: str) -> float:

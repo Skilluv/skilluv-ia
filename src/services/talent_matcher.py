@@ -67,14 +67,14 @@ async def match_talents(payload: TalentMatchPayload) -> TalentMatchResult:
 def _passes_filters(candidate: TalentSnapshot, criteria: MatchCriteria) -> bool:
     """Vérifie si un candidat passe les filtres éliminatoires."""
     # Filtre domaine de compétence
-    if criteria.skill_domains:
-        if not any(d in candidate.skill_domains for d in criteria.skill_domains):
-            return False
+    if criteria.skill_domains and not any(
+        d in candidate.skill_domains for d in criteria.skill_domains
+    ):
+        return False
 
     # Filtre fragments minimum
-    if criteria.min_fragments > 0:
-        if candidate.total_fragments < criteria.min_fragments:
-            return False
+    if criteria.min_fragments > 0 and candidate.total_fragments < criteria.min_fragments:
+        return False
 
     # Filtre titre minimum
     if criteria.min_title:
@@ -84,11 +84,7 @@ def _passes_filters(candidate: TalentSnapshot, criteria: MatchCriteria) -> bool:
             return False
 
     # Filtre pays
-    if criteria.country:
-        if candidate.country != criteria.country:
-            return False
-
-    return True
+    return not (criteria.country and candidate.country != criteria.country)
 
 
 def _compute_relevance(
@@ -131,7 +127,9 @@ def _compute_relevance(
 
     # Langages (15 pts)
     if criteria.languages:
-        matched_langs = [l for l in criteria.languages if l in candidate.top_languages]
+        matched_langs = [
+            lang for lang in criteria.languages if lang in candidate.top_languages
+        ]
         lang_ratio = len(matched_langs) / len(criteria.languages)
         score += 15.0 * lang_ratio
         if matched_langs:

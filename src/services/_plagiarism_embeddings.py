@@ -11,7 +11,6 @@ Le modèle est chargé une seule fois (singleton).
 
 import numpy as np
 
-from src.exceptions import ProcessingError
 from src.utils.logging import get_logger
 
 logger = get_logger("plagiarism.embeddings")

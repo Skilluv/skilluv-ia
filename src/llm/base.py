@@ -7,11 +7,11 @@ peu importe pour le code appelant.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Protocol
 
 
-class ModelTier(str, Enum):
+class ModelTier(StrEnum):
     """Niveaux de qualité demandés au provider.
 
     Le provider mappe chaque tier vers un modèle concret (voir MVP.md §0.2).

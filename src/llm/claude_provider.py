@@ -13,7 +13,7 @@ import anthropic
 
 from src.config import settings
 from src.exceptions import ExternalServiceError, ValidationError
-from src.llm.base import LLMProvider, ModelTier
+from src.llm.base import ModelTier
 from src.utils.logging import get_logger
 from src.utils.metrics import external_errors_total
 

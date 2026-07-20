@@ -46,7 +46,7 @@ KEYWORDS = {
     "async", "await", "raise", "pass", "break", "continue", "lambda",
     "and", "or", "not", "in", "is", "True", "False", "None",
     "function", "const", "let", "var", "export", "default", "new",
-    "fn", "let", "mut", "pub", "struct", "impl", "use", "mod",
+    "fn", "mut", "pub", "struct", "impl", "use", "mod",
     "func", "package", "type", "interface", "map", "range", "defer",
     "public", "private", "static", "void", "int", "String", "boolean",
 }
@@ -82,7 +82,7 @@ def _load_fonts() -> tuple[ImageFont.FreeTypeFont, ImageFont.FreeTypeFont]:
             _font_stats = ImageFont.truetype(font_name, 12)
             logger.info("font_loaded", font=font_name)
             return _font_code, _font_stats
-        except (OSError, IOError):
+        except OSError:
             continue
 
     # Fallback absolu
@@ -197,7 +197,11 @@ def render_frame(
         tokens = _tokenize_line(line)
         for token_text, color in tokens:
             draw.text((x, y), token_text, fill=color, font=font_code)
-            bbox = font_code.getbbox(token_text) if hasattr(font_code, "getbbox") else (0, 0, len(token_text) * 8, 14)
+            bbox = (
+                font_code.getbbox(token_text)
+                if hasattr(font_code, "getbbox")
+                else (0, 0, len(token_text) * 8, 14)
+            )
             x += bbox[2] - bbox[0]
 
     # Curseur sur la dernière ligne
@@ -207,7 +211,11 @@ def render_frame(
         last_line = visible_lines[-1] if visible_lines else ""
         cursor_x = PADDING_X + LINE_NUMBER_WIDTH
         if last_line:
-            bbox = font_code.getbbox(last_line) if hasattr(font_code, "getbbox") else (0, 0, len(last_line) * 8, 14)
+            bbox = (
+                font_code.getbbox(last_line)
+                if hasattr(font_code, "getbbox")
+                else (0, 0, len(last_line) * 8, 14)
+            )
             cursor_x += bbox[2] - bbox[0]
         # Curseur bloc orange
         if frame_index % 2 == 0:  # Clignotement simulé
@@ -270,9 +278,7 @@ def render_frames_to_dir(
         elif event_type == "delete":
             delete_count = event.get("count", len(content))
             code_state = code_state[:-delete_count] if delete_count else code_state
-        elif event_type == "replace":
-            code_state = content
-        elif event_type == "snapshot":
+        elif event_type == "replace" or event_type == "snapshot":
             code_state = content
 
         # Rendre la frame en image

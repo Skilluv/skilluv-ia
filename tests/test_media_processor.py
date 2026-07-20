@@ -3,8 +3,6 @@
 import os
 import tempfile
 
-import pytest
-
 from src.models.queue_messages import ReplayPayload, SubmissionStats
 from src.services.media_processor import (
     _format_stats_text,

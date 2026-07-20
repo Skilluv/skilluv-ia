@@ -5,7 +5,6 @@ Claude est mocké au niveau de `_get_client()`. Aucun appel réseau, aucun coût
 
 from __future__ import annotations
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -22,10 +21,8 @@ from src.grpc_server.generated import skilluv_ai_pb2_grpc as pb2_grpc
 from src.models.challenge import GeneratedChallenge, TestCase
 from src.services.challenge_generator import (
     _resolve_variant_metadata,
-    _VALID_VARIANT_TYPES,
     generate_variant,
 )
-
 
 # =========================================================================
 # 1. Helpers unitaires

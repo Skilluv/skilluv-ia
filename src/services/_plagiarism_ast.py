@@ -10,7 +10,6 @@ Supporte les langages avec grammaires tree-sitter disponibles.
 Fallback sur comparaison textuelle normalisée pour les langages non supportés.
 """
 
-import hashlib
 import re
 
 from src.utils.logging import get_logger
@@ -44,8 +43,9 @@ def _get_parser(language: str):
         return _parsers[language]
 
     try:
-        import tree_sitter
         import importlib
+
+        import tree_sitter
 
         # tree-sitter >= 0.24 : les langages sont des packages séparés
         lang_module = importlib.import_module(f"tree_sitter_{_LANGUAGE_MAP[language]}")
@@ -123,8 +123,8 @@ def _sequence_similarity(seq_a: list[str], seq_b: list[str]) -> float:
         return 0.0
 
     # Bigrammes pour capturer l'ordre structurel
-    bigrams_a = set(zip(seq_a, seq_a[1:]))
-    bigrams_b = set(zip(seq_b, seq_b[1:]))
+    bigrams_a = set(zip(seq_a, seq_a[1:], strict=False))
+    bigrams_b = set(zip(seq_b, seq_b[1:], strict=False))
 
     if not bigrams_a and not bigrams_b:
         # Séquences de 1 token chacune
@@ -147,8 +147,8 @@ def _text_similarity(text_a: str, text_b: str) -> float:
     tokens_a = text_a.split()
     tokens_b = text_b.split()
 
-    bigrams_a = set(zip(tokens_a, tokens_a[1:]))
-    bigrams_b = set(zip(tokens_b, tokens_b[1:]))
+    bigrams_a = set(zip(tokens_a, tokens_a[1:], strict=False))
+    bigrams_b = set(zip(tokens_b, tokens_b[1:], strict=False))
 
     if not bigrams_a and not bigrams_b:
         return 1.0 if tokens_a == tokens_b else 0.0

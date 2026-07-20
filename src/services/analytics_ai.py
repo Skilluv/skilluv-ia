@@ -146,13 +146,13 @@ def _churn_score(t: TalentStats, horizon_days: int) -> tuple[float, list[str], s
 
     # Bandes
     if risk >= 0.75:
-        band, action = "critical", "email personnalisé mentor + reward comeback"
+        action = "email personnalisé mentor + reward comeback"
     elif risk >= 0.5:
-        band, action = "high", "drip email + challenge suggéré (easy win)"
+        action = "drip email + challenge suggéré (easy win)"
     elif risk >= 0.25:
-        band, action = "medium", "push notification + rappel streak"
+        action = "push notification + rappel streak"
     else:
-        band, action = "low", "aucune action"
+        action = "aucune action"
 
     # Top-3 signaux
     signals.sort(key=lambda s: s[1], reverse=True)
@@ -169,7 +169,12 @@ async def predict_churn(payload: ChurnPayload) -> ChurnResult:
                 user_id=t.user_id,
                 username=t.username,
                 churn_risk=risk,
-                risk_band=("critical" if risk >= 0.75 else "high" if risk >= 0.5 else "medium" if risk >= 0.25 else "low"),
+                risk_band=(
+                    "critical" if risk >= 0.75
+                    else "high" if risk >= 0.5
+                    else "medium" if risk >= 0.25
+                    else "low"
+                ),
                 top_signals=sig,
                 recommended_action=action,
             )

@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -48,6 +49,16 @@ class Settings(BaseSettings):
     # docs/LOCAL-LLM.md pour le setup.
     llm_provider: str = "ollama"
 
+    # === Mode mock LLM (bench, CI, tests intégration sans coût) ===
+    # SKILLUV_AI_MOCK_CLAUDE=1 → factory renvoie un `MockProvider` déterministe
+    # qui satisfait le JSON schema demandé sans appel réseau. Utile pour :
+    #  - load tests `ghz` (mesurer overhead gRPC pur sans facture Claude)
+    #  - CI (pas de fuite d'API key requise)
+    #  - tests intégration end-to-end
+    # PRIORITAIRE sur `llm_provider` — si mock=1, ni Claude ni Ollama ne sont
+    # appelés. Voir src/llm/mock_provider.py.
+    mock_llm: bool = Field(default=False, alias="SKILLUV_AI_MOCK_CLAUDE")
+
     # Endpoint Ollama (docker-compose.dev.yml expose sur ollama:11434, local
     # dev via installateur natif = http://localhost:11434).
     ollama_endpoint: str = "http://localhost:11434"
@@ -58,7 +69,11 @@ class Settings(BaseSettings):
     ollama_model_standard: str = "qwen2.5-coder:7b-instruct-q4_K_M"
     ollama_model_fast: str = "qwen2.5-coder:3b-instruct-q4_K_M"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "populate_by_name": True,
+    }
 
 
 settings = Settings()

@@ -38,7 +38,6 @@ from src.services.talent_analyzer import (
     suggest_career_path,
 )
 
-
 # =========================================================================
 # 1. Orientations catalog
 # =========================================================================
@@ -206,7 +205,7 @@ class TestSuggestCareerPath:
         fake_output = {
             "suggestions": [
                 {
-                    "orientation_slug": "ui-designer",
+                    "orientation_slug": "web-designer",
                     "confidence": 0.9,
                     "match_reason": "Figma marqué.",
                     "required_skills_missing": [],
@@ -223,7 +222,7 @@ class TestSuggestCareerPath:
         ):
             result = await suggest_career_path(payload)
         # primary_recommendation invalide -> fallback sur 1re suggestion valide
-        assert result.primary_recommendation == "ui-designer"
+        assert result.primary_recommendation == "web-designer"
 
 
 # =========================================================================

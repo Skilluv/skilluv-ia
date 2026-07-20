@@ -9,6 +9,8 @@ from __future__ import annotations
 import grpc
 
 from src.exceptions import ExternalServiceError, ValidationError
+from src.grpc_server.generated import skilluv_ai_pb2 as pb2
+from src.grpc_server.generated import skilluv_ai_pb2_grpc as pb2_grpc
 from src.llm import ModelTier, get_llm
 from src.models.talent_analysis import (
     AnalyzePerformancePayload,
@@ -21,9 +23,6 @@ from src.models.talent_analysis import (
 )
 from src.services.talent_analyzer import analyze_performance, suggest_career_path
 from src.utils.logging import get_logger
-
-from src.grpc_server.generated import skilluv_ai_pb2 as pb2
-from src.grpc_server.generated import skilluv_ai_pb2_grpc as pb2_grpc
 
 logger = get_logger("grpc.talent_detection_servicer")
 

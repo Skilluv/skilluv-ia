@@ -13,13 +13,12 @@ from __future__ import annotations
 import grpc
 
 from src.exceptions import ExternalServiceError, ValidationError
+from src.grpc_server.generated import skilluv_ai_pb2 as pb2
+from src.grpc_server.generated import skilluv_ai_pb2_grpc as pb2_grpc
 from src.llm import ModelTier, get_llm
 from src.models.code_review import CodeReviewPayload, CodeReviewResult
 from src.services.code_reviewer import review_code
 from src.utils.logging import get_logger
-
-from src.grpc_server.generated import skilluv_ai_pb2 as pb2
-from src.grpc_server.generated import skilluv_ai_pb2_grpc as pb2_grpc
 
 logger = get_logger("grpc.code_review_servicer")
 

@@ -3,9 +3,9 @@
 import pytest
 from pydantic import ValidationError
 
-from src.models.challenge import ChallengeParams, GeneratedChallenge
+from src.models.challenge import ChallengeParams
 from src.models.job_results import JobResult, PlagiarismMatch
-from src.models.queue_messages import QueueMessage, PlagiarismPayload
+from src.models.queue_messages import PlagiarismPayload, QueueMessage
 
 
 class TestQueueMessage:

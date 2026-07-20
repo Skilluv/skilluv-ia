@@ -1,4 +1,10 @@
-"""Implémentation du service gRPC ChallengeService."""
+"""Implémentation du service gRPC ChallengeService.
+
+DEPRECATED — v1 legacy. Migré vers `skilluv.ai.v2.ChallengeGenerationService`
+depuis IA-M2. Ce servicer reste enregistré pour catcher les callers non
+migrés ; chaque appel log `grpc_v1_call_detected` avec le peer pour repérage.
+Retrait planifié M+2 si aucun warning en prod pendant 30 j.
+"""
 
 import json
 
@@ -11,15 +17,27 @@ from src.utils.logging import get_logger
 logger = get_logger("grpc.challenge_servicer")
 
 
-class ChallengeServiceServicer:
-    """Servicer gRPC pour la génération et validation de challenges.
+def _log_deprecated_call(context, method: str) -> None:
+    """Log warn structuré pour repérer les callers v1 encore actifs."""
+    peer = None
+    try:
+        peer = context.peer() if context is not None else None
+    except Exception:
+        peer = None
+    logger.warning(
+        "grpc_v1_call_detected",
+        method=method,
+        peer=peer,
+        migration_path="skilluv.ai.v2.ChallengeGenerationService",
+    )
 
-    Fonctionne avec les stubs générés (challenge_pb2_grpc) ou en mode manuel
-    via _manual_handler quand les stubs ne sont pas encore compilés.
-    """
+
+class ChallengeServiceServicer:
+    """Servicer gRPC v1 legacy (DEPRECATED, voir docstring module)."""
 
     async def GenerateChallenge(self, request, context):
-        """Génère un challenge complet à partir des paramètres."""
+        """Génère un challenge complet à partir des paramètres. v1 DEPRECATED."""
+        _log_deprecated_call(context, "GenerateChallenge")
         try:
             # Extraire les paramètres du message protobuf
             params = ChallengeParams(
@@ -85,7 +103,8 @@ class ChallengeServiceServicer:
             await context.abort(grpc.StatusCode.INTERNAL, str(e))
 
     async def ValidateChallenge(self, request, context):
-        """Valide la cohérence d'un challenge existant."""
+        """Valide la cohérence d'un challenge existant. v1 DEPRECATED."""
+        _log_deprecated_call(context, "ValidateChallenge")
         issues = []
 
         if not request.title or len(request.title) < 5:

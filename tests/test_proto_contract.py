@@ -12,10 +12,13 @@ import pytest
 from src.grpc_server.generated import (
     challenge_pb2,
     challenge_pb2_grpc,
+)
+from src.grpc_server.generated import (
     skilluv_ai_pb2 as pb2,
+)
+from src.grpc_server.generated import (
     skilluv_ai_pb2_grpc as pb2_grpc,
 )
-
 
 # --- 1. Les 4 servicers du contrat sont exposés --------------------------
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from src.grpc_server._rate_limit import DEFAULT_BUDGETS, RateLimitInterceptor
 
 

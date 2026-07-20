@@ -1,7 +1,7 @@
 """Worker de matching talent — consomme skilluv:queue:matching."""
 
-from datetime import UTC, datetime
 import time
+from datetime import UTC, datetime
 
 from src.exceptions import SkilluvAIError
 from src.models.job_results import JobResult

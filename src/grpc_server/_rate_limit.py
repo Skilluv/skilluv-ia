@@ -19,13 +19,16 @@ RESOURCE_EXHAUSTED est le code gRPC standard côté client.
 from __future__ import annotations
 
 import time
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import grpc
 from grpc.aio import ServerInterceptor
 
 from src.utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 logger = get_logger("grpc.rate_limit")
 

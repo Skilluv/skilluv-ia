@@ -179,9 +179,7 @@ def _generate_text_frames(events: list[dict], frames_dir: str) -> int:
         elif event_type == "delete":
             delete_count = event.get("count", len(content))
             code_state = code_state[:-delete_count] if delete_count else code_state
-        elif event_type == "replace":
-            code_state = content
-        elif event_type == "snapshot":
+        elif event_type == "replace" or event_type == "snapshot":
             code_state = content
 
         frame_path = os.path.join(frames_dir, f"frame_{frame_count:06d}.txt")

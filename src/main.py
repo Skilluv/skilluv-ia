@@ -35,8 +35,6 @@ async def start_worker() -> None:
     """Démarre le worker ARQ."""
     from arq import run_worker
 
-    from src.workers.settings import get_redis_settings
-
     # Import dynamique pour enregistrer les fonctions worker
     from src.workers import (  # noqa: F401
         analytics_ai,
@@ -46,6 +44,7 @@ async def start_worker() -> None:
         recommender,
         talent_matcher,
     )
+    from src.workers.settings import get_redis_settings
 
     run_worker(
         {

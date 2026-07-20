@@ -37,20 +37,29 @@ def register_all_servicers(server: aio.Server) -> None:
     Extrait pour permettre aux tests d'invoquer sur un serveur ad-hoc sans
     dupliquer le câblage.
     """
-    # v1 legacy — ChallengeService
-    legacy_servicer = ChallengeServiceServicer()
+    # v1 legacy — ChallengeService (DEPRECATED, planned for removal M+2).
+    # Le backend a migré sur v2 (skilluv.ai.v2) depuis IA-A. Les stubs v1
+    # restent enregistrés pour catcher tout caller externe qui n'aurait
+    # pas migré ; chaque appel log un warning `grpc_v1_call_detected`
+    # (voir ChallengeServiceServicer). Si aucun warning n'est vu en prod
+    # pendant 30 jours, retirer ce bloc + le fichier proto/challenge.proto.
     try:
         from src.grpc_server.generated import challenge_pb2_grpc
 
-        challenge_pb2_grpc.add_ChallengeServiceServicer_to_server(legacy_servicer, server)
+        legacy_servicer = ChallengeServiceServicer()
+        challenge_pb2_grpc.add_ChallengeServiceServicer_to_server(
+            legacy_servicer, server
+        )
+        logger.info("grpc_v1_legacy_registered", status="deprecated")
     except ImportError:
-        logger.warning(
-            "grpc_stubs_v1_not_generated",
+        # Le mode fallback `_manual_handler` a été retiré (obsolete depuis
+        # generate_proto.sh systématique). Si les stubs manquent, c'est un
+        # bug de setup : régénérer avec `bash scripts/generate_proto.sh`.
+        logger.error(
+            "grpc_v1_stubs_missing",
             hint="Run: bash scripts/generate_proto.sh",
         )
-        from src.grpc_server._manual_handler import add_manual_handlers
-
-        add_manual_handlers(legacy_servicer, server)
+        raise
 
     # v2 MVP — 4 services
     try:

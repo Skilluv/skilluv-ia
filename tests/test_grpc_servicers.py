@@ -17,19 +17,22 @@ import pytest
 from grpc import aio
 
 from src.grpc_server.code_review_servicer import (
-    CodeReviewServicer,
     _SEVERITY_MAP,
+    CodeReviewServicer,
+)
+from src.grpc_server.code_review_servicer import (
     _to_response as codereview_to_response,
 )
 from src.grpc_server.generated import skilluv_ai_pb2 as pb2
 from src.grpc_server.generated import skilluv_ai_pb2_grpc as pb2_grpc
 from src.grpc_server.plagiarism_servicer import (
     PlagiarismServicer,
+)
+from src.grpc_server.plagiarism_servicer import (
     _to_response as plagiarism_to_response,
 )
 from src.models.code_review import CodeReviewFinding, CodeReviewResult
 from src.models.job_results import PlagiarismMatch, PlagiarismResult
-
 
 # =========================================================================
 # CodeReview — mapping unitaire pydantic -> proto
@@ -95,7 +98,7 @@ class TestCodeReviewMapping:
         assert "Race condition" in response.issues[0].message
         assert "Accès concurrent" in response.issues[0].message
 
-    def test_resources_wrapped_in_LearningResource(self):
+    def test_resources_wrapped_in_learning_resource(self):
         response = codereview_to_response(_sample_review_result())
         assert len(response.resources) == 2
         assert response.resources[0].title == "Concurrence Python"
@@ -105,6 +108,7 @@ class TestCodeReviewMapping:
     def test_model_version_stamped_with_active_provider(self):
         # Force le provider Claude pour vérifier le mapping PREMIUM -> Opus.
         from unittest.mock import patch
+
         from src.llm.claude_provider import ClaudeProvider
         with patch(
             "src.grpc_server.code_review_servicer.get_llm",

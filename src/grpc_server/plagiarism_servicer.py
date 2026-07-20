@@ -6,15 +6,18 @@ mappe les résultats sur `CheckPlagiarismResponse` v2.
 
 from __future__ import annotations
 
-import grpc
+from typing import TYPE_CHECKING
 
-from src.models.job_results import PlagiarismMatch, PlagiarismResult
+from src.grpc_server.generated import skilluv_ai_pb2 as pb2
+from src.grpc_server.generated import skilluv_ai_pb2_grpc as pb2_grpc
 from src.models.queue_messages import PlagiarismPayload, PlagiarismSubmission
 from src.services.plagiarism_detector import detect_plagiarism
 from src.utils.logging import get_logger
 
-from src.grpc_server.generated import skilluv_ai_pb2 as pb2
-from src.grpc_server.generated import skilluv_ai_pb2_grpc as pb2_grpc
+if TYPE_CHECKING:
+    import grpc
+
+    from src.models.job_results import PlagiarismMatch, PlagiarismResult
 
 logger = get_logger("grpc.plagiarism_servicer")
 
@@ -55,10 +58,7 @@ def _to_response(
     top = _pick_top_match(result)
     # Le "is_plagiarism" côté proto respecte le threshold du client si fourni,
     # sinon le flagged du service (basé sur settings.plagiarism_threshold).
-    if threshold > 0:
-        is_plagiarism = result.highest_score >= threshold
-    else:
-        is_plagiarism = result.flagged
+    is_plagiarism = result.highest_score >= threshold if threshold > 0 else result.flagged
     return pb2.CheckPlagiarismResponse(
         similarity_score=result.highest_score,
         similar_submission_id=top.compared_submission_id if top else "",
