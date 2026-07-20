@@ -20,14 +20,9 @@ fi
 echo "Using Python: $PY"
 echo "Generating gRPC Python code from proto files..."
 
-# v1 (legacy, figé — deprecate en IA-M6)
-"$PY" -m grpc_tools.protoc \
-  -I"$PROTO_DIR" \
-  --python_out="$OUT_DIR" \
-  --grpc_python_out="$OUT_DIR" \
-  "$PROTO_DIR"/challenge.proto
-
-# v2 (MVP — 4 services : CodeReview, ChallengeGeneration, TalentDetection, Plagiarism)
+# v2 (4 services : CodeReview, ChallengeGeneration, TalentDetection, Plagiarism).
+# Le v1 (challenge.proto) a été retiré en IA-M+2 après confirmation qu'aucun
+# caller ne l'utilisait — voir docs/BACKEND-INTEGRATION.md §1.8.
 "$PY" -m grpc_tools.protoc \
   -I"$PROTO_DIR" \
   --python_out="$OUT_DIR" \
@@ -38,7 +33,7 @@ echo "Generating gRPC Python code from proto files..."
 # dans un package, on remplace par `from . import foo_pb2` pour que l'import
 # fonctionne en mode `from src.grpc_server.generated import ...`.
 # Why: relative imports evitent d'avoir a bricoler sys.path.
-for stub in "$OUT_DIR"/challenge_pb2_grpc.py "$OUT_DIR"/skilluv_ai_pb2_grpc.py; do
+for stub in "$OUT_DIR"/skilluv_ai_pb2_grpc.py; do
   if [[ -f "$stub" ]]; then
     "$PY" -c "
 import re, sys

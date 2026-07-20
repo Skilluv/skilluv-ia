@@ -1,9 +1,12 @@
 """Serveur gRPC skilluv-ai.
 
 Expose :
-  - v1 (legacy) : ChallengeService (via proto/challenge.proto, deprecate en IA-M6)
-  - v2 (MVP)    : CodeReview + Plagiarism + TalentDetection + ChallengeGeneration
+  - v2 (MVP) : CodeReview + Plagiarism + TalentDetection + ChallengeGeneration
   - grpc.health.v1.Health : healthcheck standard (Docker/K8s)
+
+Le v1 legacy (`ChallengeService` sur `proto/challenge.proto`) a été retiré
+en IA-M+2 après confirmation qu'aucun caller ne l'utilisait (backend migré
+sur v2 depuis IA-A). Voir docs/BACKEND-INTEGRATION.md §1.8.
 """
 
 from grpc import aio
@@ -14,7 +17,6 @@ from src.config import settings
 from src.grpc_server._interceptors import MetricsInterceptor
 from src.grpc_server._rate_limit import RateLimitInterceptor
 from src.grpc_server.challenge_generation_servicer import ChallengeGenerationServicer
-from src.grpc_server.challenge_servicer import ChallengeServiceServicer
 from src.grpc_server.code_review_servicer import CodeReviewServicer
 from src.grpc_server.plagiarism_servicer import PlagiarismServicer
 from src.grpc_server.talent_detection_servicer import TalentDetectionServicer
@@ -37,30 +39,6 @@ def register_all_servicers(server: aio.Server) -> None:
     Extrait pour permettre aux tests d'invoquer sur un serveur ad-hoc sans
     dupliquer le câblage.
     """
-    # v1 legacy — ChallengeService (DEPRECATED, planned for removal M+2).
-    # Le backend a migré sur v2 (skilluv.ai.v2) depuis IA-A. Les stubs v1
-    # restent enregistrés pour catcher tout caller externe qui n'aurait
-    # pas migré ; chaque appel log un warning `grpc_v1_call_detected`
-    # (voir ChallengeServiceServicer). Si aucun warning n'est vu en prod
-    # pendant 30 jours, retirer ce bloc + le fichier proto/challenge.proto.
-    try:
-        from src.grpc_server.generated import challenge_pb2_grpc
-
-        legacy_servicer = ChallengeServiceServicer()
-        challenge_pb2_grpc.add_ChallengeServiceServicer_to_server(
-            legacy_servicer, server
-        )
-        logger.info("grpc_v1_legacy_registered", status="deprecated")
-    except ImportError:
-        # Le mode fallback `_manual_handler` a été retiré (obsolete depuis
-        # generate_proto.sh systématique). Si les stubs manquent, c'est un
-        # bug de setup : régénérer avec `bash scripts/generate_proto.sh`.
-        logger.error(
-            "grpc_v1_stubs_missing",
-            hint="Run: bash scripts/generate_proto.sh",
-        )
-        raise
-
     # v2 MVP — 4 services
     try:
         from src.grpc_server.generated import skilluv_ai_pb2_grpc as v2_grpc

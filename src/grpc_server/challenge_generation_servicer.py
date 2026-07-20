@@ -1,7 +1,8 @@
 """gRPC servicer for ChallengeGenerationService v2 (MVP phase IA-M4).
 
-Expose `GenerateChallenge` et `GenerateVariant` sur le nouveau proto v2.
-Le legacy v1 (`ChallengeService` sur challenge.proto) reste actif jusqu'en M6.
+Expose `GenerateChallenge` et `GenerateVariant` sur le proto v2. Le legacy
+v1 (`ChallengeService` sur challenge.proto) a été retiré en IA-M+2 après
+confirmation qu'aucun caller ne l'utilisait.
 """
 
 from __future__ import annotations

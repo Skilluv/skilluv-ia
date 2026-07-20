@@ -10,10 +10,6 @@ Source de vérité : docs/MVP.md (Annexe A) + proto/skilluv_ai.proto.
 import pytest
 
 from src.grpc_server.generated import (
-    challenge_pb2,
-    challenge_pb2_grpc,
-)
-from src.grpc_server.generated import (
     skilluv_ai_pb2 as pb2,
 )
 from src.grpc_server.generated import (
@@ -186,15 +182,7 @@ def test_overall_score_is_double():
     assert field.type == FieldDescriptor.TYPE_DOUBLE
 
 
-# --- 6. Backward compat : v1 legacy proto reste fonctionnel ----------------
-
-def test_legacy_v1_proto_still_available():
-    # Tant que backend n'a pas migré, le v1 doit continuer à charger.
-    assert hasattr(challenge_pb2_grpc, "ChallengeServiceServicer")
-    assert hasattr(challenge_pb2, "GenerateChallengeRequest")
-
-
-# --- 7. Sanity round-trip : sérialiser un message et le relire -------------
+# --- 6. Sanity round-trip : sérialiser un message et le relire -------------
 
 def test_code_review_response_serialization_roundtrip():
     resp = pb2.CodeReviewResponse(
