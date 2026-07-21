@@ -2,7 +2,7 @@ services:
   # === Infrastructure ===
 
   redis:
-    image: redis:7-alpine
+    image: redis:8.8-alpine
     ports:
       - "6379:6379"
     volumes:
@@ -14,7 +14,7 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-10-15T17-29-55Z
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -33,7 +33,7 @@ services:
   # === Monitoring (profil: monitoring) ===
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.13.1
     profiles: ["monitoring"]
     ports:
       - "9090:9090"
@@ -44,7 +44,7 @@ services:
       - skilluv-ai
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:13.0.4
     profiles: ["monitoring"]
     ports:
       - "3000:3000"
