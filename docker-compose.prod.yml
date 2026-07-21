@@ -19,7 +19,7 @@
 
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:8.8-alpine
     restart: unless-stopped
     volumes:
       - redis_data:/data
@@ -34,7 +34,7 @@ services:
         limits: { cpus: "0.5", memory: 256M }
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-10-15T17-29-55Z
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER manquant}
@@ -77,7 +77,7 @@ services:
         limits: { cpus: "2.0", memory: 2G }
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.13.1
     restart: unless-stopped
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -93,7 +93,7 @@ services:
   alertmanager:
     # Décommentez le mount après avoir créé alertmanager.local.yml sur l'hôte
     # (copie de infra/alertmanager/alertmanager.yml, remplir CHANGE_ME).
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:v0.33.1
     restart: unless-stopped
     volumes:
       - ./infra/alertmanager/alertmanager.local.yml:/etc/alertmanager/alertmanager.yml:ro
@@ -105,7 +105,7 @@ services:
     profiles: ["alerting"]  # Activé via --profile alerting
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:13.0.4
     restart: unless-stopped
     ports:
       # Grafana derrière Caddy TLS ; on n'expose pas en clair sur 0.0.0.0.
