@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # L'image embarque torch + sentence-transformers + tree-sitter-* + ffmpeg.
       # Le runner default (~14 GB) ne suffit pas avec la layer cache Docker.
