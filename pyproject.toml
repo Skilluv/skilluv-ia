@@ -13,7 +13,7 @@ dependencies = [
     # Workers async
     "arq>=0.26",
     # LLM
-    "anthropic>=0.42",
+    "anthropic>=0.117,<1",
     # Plagiat — AST
     "tree-sitter>=0.24",
     "tree-sitter-python>=0.23",
