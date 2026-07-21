@@ -25,7 +25,8 @@ jobs:
 
       - name: Install dependencies (frozen)
         # --frozen exige uv.lock à jour → protège contre les drifts silencieux.
-        run: uv sync --frozen
+        # --group dev pour installer pytest/ruff/mypy nécessaires aux checks CI.
+        run: uv sync --frozen --group dev
 
       - name: Generate protobuf stubs
         # skilluv_ai_pb2*.py sont gitignored (build artifacts). CI doit les
