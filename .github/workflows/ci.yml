@@ -25,7 +25,8 @@ jobs:
 
       - name: Install dependencies (frozen)
         # --frozen exige uv.lock à jour → protège contre les drifts silencieux.
-        run: uv sync --frozen
+        # --group dev pour installer pytest/ruff/mypy nécessaires aux checks CI.
+        run: uv sync --frozen --extra dev
 
       - name: Generate protobuf stubs
         # skilluv_ai_pb2*.py sont gitignored (build artifacts). CI doit les
@@ -35,9 +36,9 @@ jobs:
             -Iproto \
             --python_out=src/grpc_server/generated \
             --grpc_python_out=src/grpc_server/generated \
-            proto/challenge.proto proto/skilluv_ai.proto
+            proto/skilluv_ai.proto
           # Fix imports absolus -> relatifs (idem scripts/generate_proto.sh)
-          for stub in src/grpc_server/generated/challenge_pb2_grpc.py src/grpc_server/generated/skilluv_ai_pb2_grpc.py; do
+          for stub in src/grpc_server/generated/skilluv_ai_pb2_grpc.py; do
             uv run python -c "
           import re, sys
           p = sys.argv[1]
