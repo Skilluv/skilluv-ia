@@ -60,5 +60,91 @@ jobs:
 
       - name: Pytest (unit)
         # Strict : un test qui échoue casse la CI.
-        # Skip integration/ car nécessite Redis + réseau HF Hub.
+        # Skip integration/ — voir le job dédié `integration-tests`.
         run: uv run pytest tests/ --ignore=tests/integration -v
+
+  integration-tests:
+    name: Integration (Redis + MinIO)
+    runs-on: ubuntu-latest
+    # Ne tourne qu'après les unit tests — pas de gaspillage si le fondement casse.
+    needs: check
+    timeout-minutes: 15
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+      minio:
+        # `minio server /data` est encapsulé dans une image qui expose ce
+        # comportement quand on override l'entrypoint. GitHub Actions ne
+        # permet pas les `command` sur `services:`, donc on passe par une
+        # image pré-configurée `bitnami/minio` qui démarre en mode server
+        # par défaut sur /data.
+        image: bitnami/minio:latest
+        ports:
+          - 9000:9000
+        env:
+          MINIO_ROOT_USER: minioadmin
+          MINIO_ROOT_PASSWORD: minioadmin
+          MINIO_DEFAULT_BUCKETS: skilluv-media
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.3.2
+        with:
+          version: '0.11.30'
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies (frozen)
+        run: uv sync --frozen --extra dev
+
+      - name: Generate protobuf stubs
+        run: |
+          uv run python -m grpc_tools.protoc \
+            -Iproto \
+            --python_out=src/grpc_server/generated \
+            --grpc_python_out=src/grpc_server/generated \
+            proto/skilluv_ai.proto
+          for stub in src/grpc_server/generated/skilluv_ai_pb2_grpc.py; do
+            uv run python -c "
+          import re, sys
+          p = sys.argv[1]
+          s = open(p, 'r', encoding='utf-8').read()
+          s = re.sub(r'^import (\w+_pb2) as ', r'from . import \1 as ', s, flags=re.MULTILINE)
+          open(p, 'w', encoding='utf-8').write(s)
+          " "$stub"
+          done
+
+      - name: Pytest (integration Redis/MinIO)
+        # Exclusions :
+        #  - test_grpc_full_chain.py : pull le modèle sentence-transformers
+        #    (~1 GB HF Hub) et pré-warme les embeddings de plagiat. Trop
+        #    lourd pour la CI, à lancer en local.
+        #  - test_ollama_live.py + test_services_llm_live.py : nécessitent
+        #    un serveur Ollama local — pas viable en CI GitHub Actions.
+        env:
+          REDIS_URL: redis://localhost:6379/0
+          MINIO_ENDPOINT: localhost:9000
+        run: |
+          uv run pytest tests/integration/ \
+            --ignore=tests/integration/test_grpc_full_chain.py \
+            --ignore=tests/integration/test_ollama_live.py \
+            --ignore=tests/integration/test_services_llm_live.py \
+            -v
