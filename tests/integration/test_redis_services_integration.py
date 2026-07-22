@@ -80,7 +80,7 @@ def _sample_challenge(title: str = "Test challenge") -> GeneratedChallenge:
         tone="serious",
         tags=["python", "test"],
         starter_code="def solve(): pass",
-        test_cases=[TestCase(name="basic", input="1", expected_output="1")],
+        test_cases=[TestCase(input="1", expected_output="1", description="Cas basique")],
         evaluation_criteria="Doit passer les tests unitaires.",
         fragment_reward=10,
         ai_allowed=True,
