@@ -150,14 +150,14 @@ _CAREER_SCHEMA: dict[str, Any] = {
                     },
                     "timeline_estimate_months": {"type": "integer", "minimum": 0},
                 },
-                "required": [
-                    "orientation_slug",
-                    "confidence",
-                    "match_reason",
-                    "required_skills_missing",
-                    "transition_effort",
-                    "timeline_estimate_months",
-                ],
+                # On aligne strictement avec les champs sans default dans
+                # OrientationSuggestion (voir src/models/talent_analysis.py).
+                # match_reason (""), required_skills_missing ([]),
+                # transition_effort ("medium"), timeline_estimate_months (0)
+                # ont tous des defaults Pydantic — les marquer required forçait
+                # les LLM (même 7B) à halluciner ou omettre systématiquement,
+                # sans que le service en ait besoin.
+                "required": ["orientation_slug", "confidence"],
                 "additionalProperties": False,
             },
         },
@@ -235,14 +235,17 @@ def _build_career_prompt(payload: CareerPathPayload) -> tuple[str, str]:
         "Règles strictes :\n"
         "- Utilise UNIQUEMENT les orientation_slug du catalogue fourni.\n"
         "- confidence ∈ [0,1] : rapport skills couverts / skills critiques.\n"
-        "- transition_effort : 'low' si >70% critical_skills déjà maîtrisés, "
+        "- transition_effort : EXACTEMENT une de ces valeurs anglaises (pas de "
+        "traduction française) : 'low' si >70% critical_skills déjà maîtrisés, "
         "'medium' si 30-70%, 'high' sinon.\n"
         "- timeline_estimate_months : ajuste typical_transition_months selon les "
-        "gaps réels.\n"
+        "gaps réels (entier positif).\n"
         "- required_skills_missing : liste les critical_skills que le user n'a pas.\n"
         "- Prends en compte target_market : filtre si l'orientation n'est pas "
         "disponible dans ce marché.\n"
-        "- match_reason : 1-2 phrases en français expliquant le rationnel."
+        "- match_reason : 1-2 phrases en français expliquant le rationnel.\n"
+        "- N'AJOUTE AUCUN champ hors du schéma (ex: pas de "
+        "'typical_transition_months' dans la sortie, c'est un champ d'entrée)."
     )
     user = (
         f"# User : {payload.user_id}\n"

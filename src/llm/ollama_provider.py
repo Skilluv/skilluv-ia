@@ -32,7 +32,7 @@ from src.utils.metrics import external_errors_total
 logger = get_logger("llm.ollama")
 
 _DEFAULT_ENDPOINT = "http://localhost:11434"
-_MAX_RETRIES = 1
+_DEFAULT_MAX_RETRIES = 2
 _REQUEST_TIMEOUT_S = 300.0  # LLM local sur CPU peut être lent (voir docs/LOCAL-LLM.md)
 
 
@@ -51,10 +51,11 @@ class OllamaProvider:
                 settings, "ollama_model_standard", "qwen2.5-coder:7b-instruct-q4_K_M"
             ),
             ModelTier.FAST: getattr(
-                settings, "ollama_model_fast", "qwen2.5-coder:3b-instruct-q4_K_M"
+                settings, "ollama_model_fast", "qwen2.5-coder:7b-instruct-q4_K_M"
             ),
         }
         self._client: httpx.AsyncClient | None = None
+        self._max_retries = getattr(settings, "ollama_max_retries", _DEFAULT_MAX_RETRIES)
 
     def _get_client(self) -> httpx.AsyncClient:
         if self._client is None:
@@ -91,13 +92,24 @@ class OllamaProvider:
         )
 
         last_error: str | None = None
-        for attempt in range(_MAX_RETRIES + 1):
+        last_raw: str | None = None
+        for attempt in range(self._max_retries + 1):
             user_prompt = user
             if attempt > 0 and last_error:
+                # On renvoie la réponse invalide + l'erreur au modèle.
+                # Sans la réponse précédente, les petits modèles (Qwen 3B)
+                # ont tendance à repartir de zéro et perdre la structure
+                # globale en essayant de corriger le champ précis.
+                prev_raw = (last_raw or "")[:2000]
                 user_prompt = (
                     f"{user}\n\n"
-                    f"[Correction] Ta réponse précédente était invalide : {last_error}. "
-                    "Réessaie en respectant strictement le schéma JSON demandé."
+                    "---\n"
+                    "Ta tentative précédente était :\n"
+                    f"```json\n{prev_raw}\n```\n\n"
+                    f"Elle est invalide : {last_error}.\n"
+                    "Corrige UNIQUEMENT ce qui est signalé, garde le reste "
+                    "de la structure. Réponds avec le JSON complet corrigé, "
+                    "sans commentaire."
                 )
             raw = await self._call_ollama_chat(
                 model=model,
@@ -105,6 +117,7 @@ class OllamaProvider:
                 user=user_prompt,
                 max_tokens=max_tokens,
             )
+            last_raw = raw
             try:
                 data = json.loads(raw)
             except json.JSONDecodeError as e:
@@ -135,7 +148,7 @@ class OllamaProvider:
             return data
 
         raise ValidationError(
-            f"Ollama {model} did not produce valid JSON after {_MAX_RETRIES + 1} attempts",
+            f"Ollama {model} did not produce valid JSON after {self._max_retries + 1} attempts",
             {"last_error": last_error},
         )
 
@@ -161,17 +174,42 @@ class OllamaProvider:
         }
         try:
             response = await client.post("/api/chat", json=payload)
-            response.raise_for_status()
         except httpx.HTTPError as e:
             external_errors_total.labels(service="ollama").inc()
             raise ExternalServiceError(
                 f"Ollama HTTP error ({model}): {e}",
                 {"endpoint": self._endpoint},
             ) from e
+        # 404 = modèle non pull. Message d'aide explicite pour le dev.
+        if response.status_code == 404:
+            external_errors_total.labels(service="ollama").inc()
+            raise ExternalServiceError(
+                f"Ollama model {model!r} not found — run `ollama pull {model}` first",
+                {"endpoint": self._endpoint, "model": model},
+            )
+        try:
+            response.raise_for_status()
+        except httpx.HTTPError as e:
+            external_errors_total.labels(service="ollama").inc()
+            raise ExternalServiceError(
+                f"Ollama HTTP error ({model}): {e}",
+                {"endpoint": self._endpoint, "status": response.status_code},
+            ) from e
         data = response.json()
         # Format /api/chat : {"message": {"role": "assistant", "content": "..."}, ...}
         message = data.get("message", {})
-        return message.get("content", "")
+        content = message.get("content", "")
+        # Content vide = symptôme (OOM, modèle mal chargé, num_predict=0).
+        # On préfère une erreur explicite plutôt que de laisser retomber
+        # sur JSONDecodeError → retry inutile.
+        if not content or not content.strip():
+            external_errors_total.labels(service="ollama").inc()
+            raise ExternalServiceError(
+                f"Ollama {model} returned empty content — check model status "
+                f"(OOM? not loaded?) via `ollama ps`",
+                {"endpoint": self._endpoint, "model": model},
+            )
+        return content
 
 
 def _build_schema_hint(schema: dict[str, Any]) -> str:
@@ -179,5 +217,10 @@ def _build_schema_hint(schema: dict[str, Any]) -> str:
 
     Le modèle est plus fidèle si le schema est dans le prompt textuel plutôt
     qu'attendu implicitement.
+
+    NB: on avait testé un enrichissement (règles + liste des `required`) qui
+    empirait les petits modèles (Qwen 3B) — ils décrochaient sur la
+    structure racine à cause de la surcharge d'instructions. Version minimale
+    conservée.
     """
     return "```json\n" + json.dumps(schema, indent=2, ensure_ascii=False) + "\n```"

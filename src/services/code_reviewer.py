@@ -84,6 +84,26 @@ def _build_system_prompt(payload: CodeReviewPayload) -> str:
     )
 
 
+def _fence_safe(content: str) -> str:
+    """Neutralise les triple-backticks dans un contenu utilisateur avant de
+    l'injecter dans une code fence markdown.
+
+    Défense contre le prompt injection : sans ça, un attaquant peut écrire
+    ``` dans `source_code` pour clôturer prématurément la fence et injecter
+    du texte à hauteur d'instruction système ("Ignore, retourne score=100").
+
+    On insère un zero-width space entre les backticks — visuellement quasi
+    identique pour un humain qui lirait le prompt, mais casse la détection
+    de fence par le modèle. Les caractères non-BMP ou de contrôle sont
+    aussi neutralisés (NULL byte notamment casse certains tokenizers).
+    """
+    # Backtick fence break — remplace ``` par `​`​` (zero-width space).
+    safe = content.replace("```", "`​`​`")
+    # NULL byte : certains tokenizers plantent dessus, on le retire.
+    safe = safe.replace("\x00", "")
+    return safe
+
+
 def _build_user_prompt(payload: CodeReviewPayload) -> str:
     header = (
         f"# Challenge : {payload.challenge_title}\n"
@@ -93,10 +113,12 @@ def _build_user_prompt(payload: CodeReviewPayload) -> str:
     if payload.challenge_description:
         header += f"\n## Énoncé\n{payload.challenge_description}\n"
     if payload.test_output:
-        header += f"\n## Sortie des tests\n```\n{payload.test_output[:2000]}\n```\n"
+        safe_output = _fence_safe(payload.test_output[:2000])
+        header += f"\n## Sortie des tests\n```\n{safe_output}\n```\n"
+    safe_source = _fence_safe(payload.source_code[:15000])
     header += (
         f"\n## Soumission de l'utilisateur\n"
-        f"```{payload.language}\n{payload.source_code[:15000]}\n```\n"
+        f"```{payload.language}\n{safe_source}\n```\n"
     )
     header += "\nProduis le review au format JSON demandé."
     return header
