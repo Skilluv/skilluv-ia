@@ -50,6 +50,9 @@ dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "pytest-cov>=6.0",
+    # Rerun automatique des tests marqués `@pytest.mark.flaky` — utilisé pour
+    # les tests d'intégration LLM local qui sont probabilistes par nature.
+    "pytest-rerunfailures>=15.0",
     "ruff>=0.8",
     "mypy>=1.13",
     "fakeredis>=2.26",
@@ -58,6 +61,15 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    # Tests d'intégration qui parlent à un vrai serveur Ollama local sur
+    # $OLLAMA_ENDPOINT (défaut http://localhost:11434). Skippés automatiquement
+    # si Ollama n'est pas joignable. Lents (10s-2min par test selon modèle).
+    # Run : `uv run pytest -m local_llm` (ou `RUN_LOCAL_LLM=1 uv run pytest`).
+    "local_llm: tests d'intégration contre un vrai serveur Ollama local",
+    # Tests d'intégration nécessitant Redis / MinIO (docker compose up -d).
+    "integration: tests d'intégration nécessitant des services externes",
+]
 
 [tool.ruff]
 target-version = "py312"
