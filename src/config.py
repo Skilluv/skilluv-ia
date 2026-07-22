@@ -65,9 +65,22 @@ class Settings(BaseSettings):
 
     # Mapping tier -> modèle Ollama. Défauts adaptés à ~16 GB RAM CPU-only.
     # Voir docs/LOCAL-LLM.md pour d'autres profils (32 GB, GPU dédié, etc.).
+    #
+    # NB : les 3 tiers pointent volontairement sur le même modèle 7B. Le 3B a
+    # été testé et échoue de façon reproductible sur les schémas nested
+    # (typiquement `suggest_career_path` — voir tests/integration/
+    # test_services_llm_live.py). Un seul modèle à pull en prod, latence
+    # uniforme, pas de surprise. Pour ré-introduire un modèle plus petit sur
+    # le tier FAST, valider d'abord contre les vrais schémas des 3 services.
     ollama_model_premium: str = "qwen2.5-coder:7b-instruct-q4_K_M"
     ollama_model_standard: str = "qwen2.5-coder:7b-instruct-q4_K_M"
-    ollama_model_fast: str = "qwen2.5-coder:3b-instruct-q4_K_M"
+    ollama_model_fast: str = "qwen2.5-coder:7b-instruct-q4_K_M"
+
+    # Nombre max de retries si Ollama produit un JSON invalide / non conforme
+    # au schema. Ollama < Claude sur le structured output — un budget de 2
+    # retries (soit 3 tentatives) est le sweet spot mesuré avec Qwen 7B sur
+    # les schémas de challenge_generation (~10 champs).
+    ollama_max_retries: int = 2
 
     model_config = {
         "env_file": ".env",
