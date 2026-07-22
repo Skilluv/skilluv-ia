@@ -81,27 +81,31 @@ jobs:
           --health-timeout 3s
           --health-retries 5
 
-      minio:
-        # `minio server /data` est encapsulé dans une image qui expose ce
-        # comportement quand on override l'entrypoint. GitHub Actions ne
-        # permet pas les `command` sur `services:`, donc on passe par une
-        # image pré-configurée `bitnami/minio` qui démarre en mode server
-        # par défaut sur /data.
-        image: bitnami/minio:latest
-        ports:
-          - 9000:9000
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-          MINIO_DEFAULT_BUCKETS: skilluv-media
-        options: >-
-          --health-cmd "curl -f http://localhost:9000/minio/health/live"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
+    # Note : MinIO n'est PAS dans `services:` car GitHub Actions n'accepte
+    # pas de `command:` sur services et l'image `minio/minio` officielle
+    # requiert un arg (`server /data`). On la démarre manuellement en step
+    # ci-dessous — plus verbose mais fiable et sans dépendre d'une image
+    # tierce (Bitnami a supprimé `bitnami/minio:latest`).
 
     steps:
       - uses: actions/checkout@v7
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio server /data
+          # Attente santé — /minio/health/live renvoie 200 quand prêt.
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live > /dev/null; then
+              echo "MinIO ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf http://localhost:9000/minio/health/live || (docker logs minio && exit 1)
 
       - name: Install uv
         uses: astral-sh/setup-uv@v8.3.2
