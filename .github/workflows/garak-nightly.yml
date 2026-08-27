@@ -1,0 +1,41 @@
+name: Nightly LLM red-team (garak)
+
+# IA-02 — garak is the nmap of LLMs: prompt injection, jailbreak, data leak,
+# toxicity probes against the model the verifier calls. It needs a reachable
+# model endpoint, so this is a SCAFFOLD: it installs garak and documents the
+# target. Wire GARAK_TARGET (an Ollama/OpenAI-compatible endpoint) as a repo
+# secret/var to activate. Advisory -- findings are triaged, prompts hardened,
+# regressions added to tests/test_prompt_injection.py (which already covers the
+# business-logic injection cases in pytest).
+#
+# NOT yet executed: the model target is a deployment detail, filled in here.
+on:
+  schedule:
+    - cron: "31 4 * * 3"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  garak:
+    name: garak probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+      - name: Install garak
+        run: uv tool install garak
+      - name: Run garak (requires a model target)
+        continue-on-error: true
+        env:
+          GARAK_TARGET: ${{ vars.GARAK_TARGET }}
+        run: |
+          if [ -z "${GARAK_TARGET}" ]; then
+            echo "GARAK_TARGET unset -- set it to the model endpoint to activate this scan."
+            echo "Example: uv tool run garak --model_type rest --model_name \"$GARAK_TARGET\" --probes promptinject,dan"
+            exit 0
+          fi
+          uv tool run garak --model_type rest --model_name "${GARAK_TARGET}" \
+            --probes promptinject,dan,leakreplay || true
