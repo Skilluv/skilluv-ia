@@ -48,6 +48,12 @@ jobs:
           " "$stub"
           done
 
+      - name: Secret scan (gitleaks, SE-04)
+        run: |
+          VERSION=8.21.2
+          curl -fsSL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tar.gz gitleaks && sudo mv gitleaks /usr/local/bin/
+          gitleaks detect --source . --redact --verbose --exit-code 1
       - name: Ruff lint
         # Non bloquant tant que le code n'est pas 100% clean (~20 warnings existants).
         # À passer en strict une fois nettoyé.
