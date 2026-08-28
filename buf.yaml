@@ -1,0 +1,16 @@
+# buf v2 — proto contract governance (IA-01).
+#
+# The gRPC schema is a contract shared with skilluv-backend's client. `buf
+# breaking` is the point: it catches a renumbered field, a removed field, or a
+# changed type before it ships and silently desyncs the two services. `buf
+# lint` is advisory here (BASIC), because the proto predates buf and a wall of
+# STANDARD-lint failures would drown the breaking signal that matters.
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - BASIC
+breaking:
+  use:
+    - FILE
