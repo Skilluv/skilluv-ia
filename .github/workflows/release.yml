@@ -42,7 +42,7 @@ jobs:
       # On libère ~30 GB avant de commencer.
       - name: Free disk space on runner
         # Pinned to SHA (main = supply-chain risk). Bump when auditing new commits.
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # 2023-10-18
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # 2023-10-18
         with:
           tool-cache: true
           android: true
